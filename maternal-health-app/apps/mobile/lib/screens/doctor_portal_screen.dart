@@ -54,8 +54,6 @@ class _DoctorPortalScreenState extends State<DoctorPortalScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Doctor Portal'),
-        backgroundColor: const Color(0xFF880E4F),
-        foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
@@ -81,9 +79,9 @@ class _DoctorPortalScreenState extends State<DoctorPortalScreen> {
             const SizedBox(height: 24),
 
             // Patients list
-            const Text(
+            Text(
               'Patients',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF880E4F)),
+            style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 12),
             _isLoading

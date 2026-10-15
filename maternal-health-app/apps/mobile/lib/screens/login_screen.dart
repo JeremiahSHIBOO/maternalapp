@@ -32,9 +32,14 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-      // Auth success - navigate to role selection
+      // Remove the welcome/login routes so Back cannot return to the
+      // unauthenticated flow after sign-in.
       if (!mounted) return;
-      Navigator.pushReplacementNamed(context, '/role-selection');
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/role-selection',
+        (_) => false,
+      );
     } on AuthException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -87,94 +92,126 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Icon(
-                Icons.pregnant_woman,
-                size: 80,
-                color: Color(0xFF880E4F),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'MatruCare',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF880E4F),
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Pregnancy & Postpartum Companion',
-                style: TextStyle(fontSize: 16, color: Color(0xFFAD1457)),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 32),
-              TextFormField(
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  prefixIcon: Icon(Icons.email),
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.emailAddress,
-                controller: _emailController,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your email';
-                  }
-                  if (!value.contains('@')) {
-                    return 'Please enter a valid email';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                decoration: const InputDecoration(
-                  labelText: 'Password',
-                  prefixIcon: Icon(Icons.lock),
-                  border: OutlineInputBorder(),
-                ),
-                obscureText: true,
-                controller: _passwordController,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your password';
-                  }
-                  if (value.length < 6) {
-                    return 'Password must be at least 6 characters';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 24),
-              _isLoggingIn || _isSigningUp
-                  ? const CircularProgressIndicator()
-                  : ElevatedButton(
-                      onPressed: _isSignUpMode ? _signUp : _signIn,
-                      child: Text(_isSignUpMode ? 'Create Account' : 'Log In'),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 440),
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(28),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Container(
+                          alignment: Alignment.center,
+                          child: Container(
+                            width: 58,
+                            height: 58,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1E8ED),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Icon(Icons.spa_outlined, color: Color(0xFF70445E), size: 28),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          _isSignUpMode ? 'Create your account' : 'Welcome back',
+                          style: Theme.of(context).textTheme.headlineSmall,
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _isSignUpMode
+                              ? 'A more supported pregnancy starts here.'
+                              : 'Sign in to continue your care journey.',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 28),
+                        TextFormField(
+                          decoration: const InputDecoration(
+                            labelText: 'Email',
+                            prefixIcon: Icon(Icons.mail_outline),
+                          ),
+                          keyboardType: TextInputType.emailAddress,
+                          controller: _emailController,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter your email';
+                            }
+                            if (!value.contains('@')) {
+                              return 'Please enter a valid email';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          decoration: const InputDecoration(
+                            labelText: 'Password',
+                            prefixIcon: Icon(Icons.lock_outline),
+                          ),
+                          obscureText: true,
+                          controller: _passwordController,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter your password';
+                            }
+                            if (value.length < 6) {
+                              return 'Password must be at least 6 characters';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 24),
+                        _isLoggingIn || _isSigningUp
+                            ? const Center(child: CircularProgressIndicator())
+                            : ElevatedButton(
+                                onPressed: _isSignUpMode ? _signUp : _signIn,
+                                child: Text(_isSignUpMode ? 'Create account' : 'Log in'),
+                              ),
+                        const SizedBox(height: 16),
+                        TextButton(
+                          onPressed: (_isLoggingIn || _isSigningUp)
+                              ? null
+                              : () => setState(() => _isSignUpMode = !_isSignUpMode),
+                          child: Text(_isSignUpMode ? 'Already registered? Log in' : 'Create an account'),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            const Expanded(child: Divider()),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              child: Text(
+                                'OR',
+                                style: Theme.of(context).textTheme.labelSmall?.copyWith(color: const Color(0xFFA49BA1)),
+                              ),
+                            ),
+                            const Expanded(child: Divider()),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        ListTile(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            side: const BorderSide(color: Color(0xFFE7E0E3)),
+                          ),
+                          leading: const Icon(Icons.g_mobiledata, color: Color(0xFF70445E), size: 30),
+                          title: const Text('Continue with Google', textAlign: TextAlign.center),
+                          onTap: _signInWithGoogle,
+                        ),
+                      ],
                     ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: (_isLoggingIn || _isSigningUp)
-                    ? null
-                    : () => setState(() => _isSignUpMode = !_isSignUpMode),
-                child: Text(_isSignUpMode ? 'Already registered? Log in' : 'Create Account'),
+                  ),
+                ),
               ),
-              const SizedBox(height: 16),
-              const Divider(),
-              ListTile(
-                leading: const Icon(Icons.g_mobiledata, color: Colors.red),
-                title: const Text('Continue with Google'),
-                onTap: _signInWithGoogle,
-              ),
-            ],
+            ),
           ),
         ),
       ),

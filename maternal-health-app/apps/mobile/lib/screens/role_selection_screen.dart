@@ -27,7 +27,11 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
           onConflict: 'user_id',
         );
       }
-      if (mounted) Navigator.pushReplacementNamed(context, route);
+      if (mounted) {
+        // Keep the signed-in flow as the root of the navigation stack so
+        // Back from a dashboard cannot reveal the welcome screen.
+        Navigator.pushNamedAndRemoveUntil(context, route, (_) => false);
+      }
     } catch (error) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not save your role: $error')));
     } finally {
@@ -38,70 +42,30 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.person,
-              size: 100,
-              color: Color(0xFF880E4F),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 500),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('PERSONALISE YOUR SPACE', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.4, color: const Color(0xFF789080), fontWeight: FontWeight.w700)),
+                const SizedBox(height: 12),
+                Text('How will you use MatruCare?', style: Theme.of(context).textTheme.headlineSmall),
+                const SizedBox(height: 8),
+                Text('Choose the experience that fits you. You can change this later.', style: Theme.of(context).textTheme.bodyMedium),
+                const SizedBox(height: 28),
+                _buildRoleCard(context, Icons.favorite_outline, 'Mother', 'Pregnancy, baby growth and wellbeing', () => _selectRole('mother', '/mother-home')),
+                const SizedBox(height: 12),
+                _buildRoleCard(context, Icons.people_outline, 'Partner', 'Support and shared family care', () => _selectRole('partner', '/partner-home')),
+                const SizedBox(height: 12),
+                _buildRoleCard(context, Icons.medical_services_outlined, 'Doctor', 'Clinical care and patient overview', () => _selectRole('doctor', '/doctor-portal')),
+                if (_savingRole) const Padding(padding: EdgeInsets.only(top: 24), child: Center(child: CircularProgressIndicator())),
+                const SizedBox(height: 20),
+                Center(child: TextButton(onPressed: () => Navigator.pushNamed(context, '/login'), child: const Text('Use a different account'))),
+              ]),
             ),
-            const SizedBox(height: 24),
-            const Text(
-              'Select Your Role',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF880E4F),
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'MatruCare Platform',
-              style: TextStyle(fontSize: 16, color: Color(0xFFAD1457)),
-            ),
-            if (_savingRole) const Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()),
-            const SizedBox(height: 48),
-            _buildRoleCard(
-              context,
-              '🤰 Mother',
-              'Track pregnancy, baby growth, and wellbeing',
-              Colors.pink[100]!,
-              Colors.pink[300]!,
-              () => _selectRole('mother', '/mother-home'),
-            ),
-            const SizedBox(height: 16),
-            _buildRoleCard(
-              context,
-              '👨‍💼 Partner',
-              'Partner dashboard; shared records are not set up yet',
-              Color(0xFFE8F5E9),
-              Color(0xFFA5D6A7),
-              () => _selectRole('partner', '/partner-home'),
-            ),
-            const SizedBox(height: 16),
-            _buildRoleCard(
-              context,
-              '🩺 Doctor',
-              'Clinician dashboard; patient assignments are not set up yet',
-              Color(0xFFE3F2FD),
-              Color(0xBBDEFB),
-              () => _selectRole('doctor', '/doctor-portal'),
-            ),
-            const SizedBox(height: 32),
-            const Text(
-              'Already have an account?',
-              style: TextStyle(fontSize: 12, color: Color(0xFF880E4F)),
-            ),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: () {
-                Navigator.pushNamed(context, '/login');
-              },
-              child: const Text('Log In'),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -109,36 +73,23 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
 
   Widget _buildRoleCard(
     BuildContext context,
+    IconData icon,
     String title,
     String subtitle,
-    Color backgroundColor,
-    Color accentColor,
     VoidCallback onTap,
   ) {
     return Card(
-      color: backgroundColor,
       child: InkWell(
-        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        onTap: _savingRole ? null : onTap,
         child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF880E4F),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                subtitle,
-                style: const TextStyle(fontSize: 14, color: Color(0xFF666666)),
-              ),
-            ],
-          ),
+          padding: const EdgeInsets.all(18),
+          child: Row(children: [
+            Container(width: 48, height: 48, decoration: BoxDecoration(color: const Color(0xFFF1E8ED), borderRadius: BorderRadius.circular(16)), child: Icon(icon, color: const Color(0xFF70445E))),
+            const SizedBox(width: 16),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: Theme.of(context).textTheme.titleMedium), const SizedBox(height: 4), Text(subtitle, style: Theme.of(context).textTheme.bodyMedium)])),
+            const Icon(Icons.arrow_forward_ios, size: 15, color: Color(0xFF968B92)),
+          ]),
         ),
       ),
     );

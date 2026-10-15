@@ -66,9 +66,7 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('MatruCare - Mother'),
-        backgroundColor: const Color(0xFF880E4F),
-        foregroundColor: Colors.white,
+        title: const Text('MatruCare'),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
@@ -78,40 +76,24 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Pregnancy stage banner
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFCE4EC),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Active Stage: $_activeStage',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF880E4F),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  LinearProgressIndicator(
-                    value: _progress,
-                    backgroundColor: Colors.grey[200],
-                    color: Color(0xFF880E4F),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Progress: ${(_progress * 100).round()}%',
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF880E4F)),
-                  ),
-                ],
+            Card(
+              color: const Color(0xFFF1E8ED),
+              child: Padding(
+                padding: const EdgeInsets.all(22),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('YOUR JOURNEY', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.4, color: const Color(0xFF70445E), fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 10),
+                  Text(_activeStage, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontSize: 22)),
+                  const SizedBox(height: 18),
+                  ClipRRect(borderRadius: BorderRadius.circular(8), child: LinearProgressIndicator(value: _progress, minHeight: 8, backgroundColor: Colors.white, color: const Color(0xFF70445E))),
+                  const SizedBox(height: 10),
+                  Text('${(_progress * 100).round()}% of the 40-week journey', style: Theme.of(context).textTheme.bodyMedium),
+                ]),
               ),
             ),
             const SizedBox(height: 24),
@@ -127,29 +109,29 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
                   Icons.schedule,
                   'Appointments',
                   'No appointments yet',
-                  Color(0xFFE3F2FD),
-                  Colors.blue,
+                  Color(0xFFF4F0F2),
+                  Color(0xFF70445E),
                 ),
                 _buildStatCard(
                   Icons.favorite,
                   'Movement',
                   'Follow your care team’s guidance',
-                  Color(0xFFF3E5F5),
-                  Color(0xFFE91E63),
+                  Color(0xFFF4F0F2),
+                  Color(0xFF70445E),
                 ),
                 _buildStatCard(
                   Icons.water_drop,
                   'Hydration',
                   'Track in daily check-in',
-                  Color(0xFFE8F5E9),
-                  Color(0xFF4CAF50),
+                  Color(0xFFF4F0F2),
+                  Color(0xFF789080),
                 ),
                 _buildStatCard(
                   Icons.favorite,
                   'Weight',
                   'No measurements yet',
-                  Color(0xFFE8F5E9),
-                  Color(0xFF8BC34A),
+                  Color(0xFFF4F0F2),
+                  Color(0xFF789080),
                 ),
               ],
             ),
@@ -158,11 +140,7 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
             // Navigation buttons to key screens
             Text(
               'Quick Access',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF880E4F),
-              ),
+              style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 16),
             Wrap(
@@ -173,32 +151,32 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
                   context,
                   Icons.dashboard,
                   'Dashboard',
-                  Color(0xFFE3F2FD),
-                  Colors.pink[100]!,
+                  Color(0xFFF4F0F2),
+                  Color(0xFF70445E),
                   '/mother-home',
                 ),
                 _navButton(
                   context,
                   Icons.check_circle_outline,
                   'Daily check-in',
-                  Color(0xFFE8F5E9),
-                  Color(0xFF8BC34A),
+                  Color(0xFFF4F0F2),
+                  Color(0xFF789080),
                   '/check-in',
                 ),
                 _navButton(
                   context,
                   Icons.health_and_safety,
                   'Track symptoms',
-                  Color(0xFFF3E5F5),
-                  Color(0xFFE91E63),
+                  Color(0xFFF4F0F2),
+                  Color(0xFF70445E),
                   '/symptoms',
                 ),
                 _navButton(
                   context,
                   Icons.medical_services,
                   'Doctor',
-                  Color(0xFFE3F2FD),
-                  Colors.blue,
+                  Color(0xFFF4F0F2),
+                  Color(0xFF789080),
                   '/doctor-portal',
                 ),
               ],
@@ -216,21 +194,20 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
   Widget _buildStatCard(IconData icon, String title, String subtitle,
       Color color, Color accentColor) {
     return Card(
-      color: Colors.white,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: accentColor, size: 32),
+            Container(width: 44, height: 44, decoration: BoxDecoration(color: const Color(0xFFF1E8ED), borderRadius: BorderRadius.circular(15)), child: Icon(icon, color: accentColor, size: 22)),
             const SizedBox(height: 8),
             Text(
               title,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF880E4F)),
+              style: const TextStyle(fontSize: 12, color: Color(0xFF766E76), fontWeight: FontWeight.w600),
             ),
             Text(
               subtitle,
-              style: const TextStyle(fontSize: 14, color: Colors.grey),
+              style: const TextStyle(fontSize: 14, color: Color(0xFF28212A), fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -246,15 +223,11 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
     Color accentColor,
     String route,
   ) {
-    return ElevatedButton.icon(
+    return OutlinedButton.icon(
       onPressed: () => Navigator.pushNamed(context, route),
       icon: Icon(icon, color: accentColor),
       label: Text(label),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color,
-        foregroundColor: accentColor,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      ),
+      style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF70445E), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12), side: const BorderSide(color: Color(0xFFE7E0E3)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
     );
   }
 

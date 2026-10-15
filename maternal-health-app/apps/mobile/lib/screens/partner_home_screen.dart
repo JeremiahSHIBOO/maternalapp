@@ -12,9 +12,7 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('MatruCare - Partner'),
-        backgroundColor: const Color(0xFF880E4F),
-        foregroundColor: Colors.white,
+        title: const Text('MatruCare'),
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications),
@@ -34,25 +32,25 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
                   Icons.task,
                   'Pending Tasks',
                   'No shared data',
-                  Color(0xFFE3F2FD),
-                  Colors.blue,
+                  Color(0xFFF4F0F2),
+                  Color(0xFF70445E),
                 ),
                 const SizedBox(width: 16),
                 _buildSummaryCard(
                   Icons.money,
                   'Monthly Expenses',
                   'No shared data',
-                  Color(0xFFFFF3E5),
-                  Color(0xFFE91E63),
+                  Color(0xFFF4F0F2),
+                  Color(0xFF789080),
                 ),
               ],
             ),
             const SizedBox(height: 24),
 
             // Quick actions
-            const Text(
+            Text(
               'Quick Actions',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF880E4F)),
+              style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 16),
             Wrap(
@@ -63,32 +61,32 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
                   context,
                   Icons.task_alt,
                   'Tasks',
-                  Color(0xFFE8F5E9),
-                  Color(0xFF8BC34A),
+                  Color(0xFFF4F0F2),
+                  Color(0xFF789080),
                   '/partner/tasks',
                 ),
                 _actionButton(
                   context,
                   Icons.medical_services,
                   'Expenses',
-                  Color(0xFFFFF3E5),
-                  Color(0xFFE91E63),
+                  Color(0xFFF4F0F2),
+                  Color(0xFF70445E),
                   '/partner/expenses',
                 ),
                 _actionButton(
                   context,
                   Icons.calendar_today,
                   'Calendar',
-                  Color(0xFFE3F2FD),
-                  Colors.blue,
+                  Color(0xFFF4F0F2),
+                  Color(0xFF789080),
                   '/partner/calendar',
                 ),
                 _actionButton(
                   context,
                   Icons.people,
                   'Family',
-                  Color(0xFFFFF3E5),
-                  Color(0xFF8BC34A),
+                  Color(0xFFF4F0F2),
+                  Color(0xFF70445E),
                   '/partner/family',
                 ),
               ],
@@ -142,16 +140,17 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
     Color accentColor,
     String route,
   ) {
-    return ElevatedButton.icon(
+    return OutlinedButton.icon(
       onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('$label will appear after a mother shares access with your account.')),
       ),
       icon: Icon(icon, color: accentColor),
       label: Text(label),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color,
+      style: OutlinedButton.styleFrom(
         foregroundColor: accentColor,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        side: const BorderSide(color: Color(0xFFE7E0E3)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
   }

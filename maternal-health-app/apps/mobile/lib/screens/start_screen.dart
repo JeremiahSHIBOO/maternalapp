@@ -12,14 +12,13 @@ class StartScreen extends StatelessWidget {
     if (!AppConfig.isConfigured) {
       return Scaffold(
         body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(mainAxisSize: MainAxisSize.min, children: const [
-              Icon(Icons.cloud_off, size: 56, color: Color(0xFF880E4F)),
-              SizedBox(height: 16),
-              Text('Connect Supabase to start', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-              SizedBox(height: 8),
-              Text('Add your Supabase project URL and public key to the .env file, then restart the app. See README.md.'),
+          child: _WelcomeShell(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              _BrandMark(icon: Icons.cloud_outlined),
+              const SizedBox(height: 24),
+              Text('Connect your account', style: Theme.of(context).textTheme.headlineSmall),
+              const SizedBox(height: 10),
+              Text('Add your Supabase project URL and public key to the .env file, then restart the app.', textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
             ]),
           ),
         ),
@@ -35,42 +34,58 @@ class StartScreen extends StatelessWidget {
 
     // Show the welcome screen to unauthenticated users.
     return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.star,
-              size: 100,
-              color: Color(0xFF880E4F),
+      body: _WelcomeShell(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const _BrandMark(icon: Icons.spa_outlined),
+          const SizedBox(height: 32),
+          Text('MatruCare', style: Theme.of(context).textTheme.headlineMedium),
+          const SizedBox(height: 12),
+          Text('A little more support for every step.', textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyLarge),
+          const SizedBox(height: 36),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreen())),
+              child: const Text('Get started'),
             ),
-            const SizedBox(height: 24),
-            const Text(
-              'MatruCare',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF880E4F),
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Pregnancy & Postpartum Companion',
-              style: TextStyle(fontSize: 16, color: Color(0xFFAD1457)),
-            ),
-            const SizedBox(height: 48),
-            ElevatedButton(
-              onPressed: () {
-                // Go to login/signup
-                Navigator.push(context, MaterialPageRoute(
-                  builder: (_) => const LoginScreen(),
-                ));
-              },
-              child: const Text('Get Started'),
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 16),
+          Text('Pregnancy and postpartum care, made personal.', textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
+        ]),
       ),
     );
   }
+}
+
+class _WelcomeShell extends StatelessWidget {
+  final Widget child;
+  const _WelcomeShell({required this.child});
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(28),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Card(
+                child: Padding(padding: const EdgeInsets.all(30), child: child),
+              ),
+            ),
+          ),
+        ),
+      );
+}
+
+class _BrandMark extends StatelessWidget {
+  final IconData icon;
+  const _BrandMark({required this.icon});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: 68,
+        height: 68,
+        decoration: BoxDecoration(color: const Color(0xFFF1E8ED), borderRadius: BorderRadius.circular(24)),
+        child: Icon(icon, color: const Color(0xFF70445E), size: 30),
+      );
 }

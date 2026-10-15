@@ -67,17 +67,15 @@ class _SymptomTrackerScreenState extends State<SymptomTrackerScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Symptom Tracker'),
-        backgroundColor: const Color(0xFF880E4F),
-        foregroundColor: Colors.white,
       ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Log a Symptom',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 24),
 
@@ -148,8 +146,6 @@ class _SymptomTrackerScreenState extends State<SymptomTrackerScreen> {
             ElevatedButton(
               onPressed: _logSymptom,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFF880E4F),
-                foregroundColor: Colors.white,
                 minimumSize: const Size(double.infinity, 50),
               ),
               child: _isLoggingIn

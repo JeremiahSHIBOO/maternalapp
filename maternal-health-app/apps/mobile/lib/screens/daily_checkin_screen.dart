@@ -94,8 +94,6 @@ class _DailyCheckInScreenState extends State<DailyCheckInScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Daily Check-in'),
-        backgroundColor: const Color(0xFF880E4F),
-        foregroundColor: Colors.white,
       ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -103,9 +101,9 @@ class _DailyCheckInScreenState extends State<DailyCheckInScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Daily Health Check-in',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: Theme.of(context).textTheme.headlineSmall,
               ),
               const SizedBox(height: 24),
 
@@ -183,8 +181,6 @@ class _DailyCheckInScreenState extends State<DailyCheckInScreen> {
                   : ElevatedButton(
                       onPressed: _submitCheckIn,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Color(0xFF880E4F),
-                        foregroundColor: Colors.white,
                         minimumSize: const Size(double.infinity, 50),
                       ),
                       child: const Text('Submit Check-in'),
