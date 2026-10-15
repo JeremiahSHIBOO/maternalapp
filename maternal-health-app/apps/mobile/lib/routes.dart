@@ -5,6 +5,8 @@ import 'screens/role_selection_screen.dart';
 import 'screens/mother_home_screen.dart';
 import 'screens/partner_home_screen.dart';
 import 'screens/doctor_portal_screen.dart';
+import 'screens/daily_checkin_screen.dart';
+import 'screens/symptom_tracker_screen.dart';
 
 class AppRoutes {
   static const String start = '/';
@@ -14,6 +16,8 @@ class AppRoutes {
   static const String partnerHome = '/partner-home';
   static const String doctorPortal = '/doctor-portal';
   static const String patientDetails = '/patient-details';
+  static const String dailyCheckIn = '/check-in';
+  static const String symptomTracker = '/symptoms';
 
   static Route<dynamic>? onGenerate(RouteSettings settings) {
     switch (settings.name) {
@@ -29,6 +33,10 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => const PartnerHomeScreen());
       case doctorPortal:
         return MaterialPageRoute(builder: (_) => const DoctorPortalScreen());
+      case dailyCheckIn:
+        return MaterialPageRoute(builder: (_) => const DailyCheckInScreen());
+      case symptomTracker:
+        return MaterialPageRoute(builder: (_) => const SymptomTrackerScreen());
       case patientDetails:
         final args = settings.arguments as Map<String, dynamic>?;
         return MaterialPageRoute(

@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 class DoctorPortalScreen extends StatefulWidget {
   const DoctorPortalScreen({super.key});
 
   @override
-  State<DoctorPortalScreen> createState() => _DoctorPortalScreenState;
+  State<DoctorPortalScreen> createState() => _DoctorPortalScreenState();
 }
 
 class _DoctorPortalScreenState extends State<DoctorPortalScreen> {
-  final SupabaseClient _supabase = Supabase.instance.client;
   final TextEditingController _searchController = TextEditingController();
   final List<Map<String, dynamic>> _patients = [];
   bool _isLoading = false;
@@ -23,34 +21,9 @@ class _DoctorPortalScreenState extends State<DoctorPortalScreen> {
   Future<void> _loadPatients() async {
     setState(() => _isLoading = true);
     try {
-      // In a real app, this would query the database with proper RLS
-      // For now, use demo data
-      await Future.delayed(const Duration(seconds: 1));
       if (!mounted) return;
       setState(() {
-        _patients.addAll([
-          {
-            'id': '1',
-            'name': 'Ananya Sharma',
-            'age': '28',
-            'gestationalAge': '20 weeks',
-            'status': 'active',
-          },
-          {
-            'id': '2',
-            'name': 'Priya Patel',
-            'age': '32',
-            'gestationalAge': '34 weeks',
-            'status': 'high-risk',
-          },
-          {
-            'id': '3',
-            'name': 'Sunita Singh',
-            'age': '26',
-            'gestationalAge': '15 weeks',
-            'status': 'active',
-          },
-        ]);
+        _patients.clear();
         _isLoading = false;
       });
     } catch (e) {
@@ -65,22 +38,9 @@ class _DoctorPortalScreenState extends State<DoctorPortalScreen> {
   Future<void> _searchPatient() async {
     setState(() => _isLoading = true);
     try {
-      await Future.delayed(const Duration(seconds: 1));
       if (!mounted) return;
       setState(() {
-        // Filter patients based on search
         _patients.clear();
-        if (_searchController.text.isNotEmpty) {
-          _patients.add({
-            'id': '1',
-            'name': 'Ananya Sharma',
-            'age': '28',
-            'gestationalAge': '20 weeks',
-            'status': 'active',
-          });
-        } else {
-          _loadPatients();
-        }
         _isLoading = false;
       });
     } catch (e) {
@@ -129,7 +89,7 @@ class _DoctorPortalScreenState extends State<DoctorPortalScreen> {
             _isLoading
                 ? const CircularProgressIndicator()
                 : _patients.isEmpty
-                    ? const Text('No patients found')
+                    ? const Text('No assigned patients are available for this account.')
                     : Expanded(
                         child: ListView.builder(
                           itemCount: _patients.length,
@@ -162,7 +122,7 @@ class _DoctorPortalScreenState extends State<DoctorPortalScreen> {
                                     patient['status'],
                                     style: TextStyle(
                                       color: patient['status'] == 'high-risk'
-                                          ? Color(0xFFM64043)
+                                          ? Color(0xFFB00020)
                                           : Color(0xFF2E7D32),
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
@@ -184,52 +144,10 @@ class _DoctorPortalScreenState extends State<DoctorPortalScreen> {
                       ),
             const SizedBox(height: 24),
 
-            // Quick stats
-            const Text(
-              'Quick Stats',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF880E4F)),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                _quickStat(Icons.pregnant_woman, 'Active Patients', '12', Colors.pink),
-                const SizedBox(width: 16),
-                _quickStat(Icons.calendar_today, 'Appointments Today', '8', Colors.blue),
-              ],
-            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _quickStat(IconData icon, String label, String value, Color color) {
-    return Expanded(
-      child: Card(
-        color: Colors.white,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children:
-                [
-                  Icon(icon, color: color, size: 28),
-                  const SizedBox(height: 8),
-                  Text(
-                    label,
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF880E4F)),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    value,
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-          ),
-        ),
-      ),
-    );
-  }
 }

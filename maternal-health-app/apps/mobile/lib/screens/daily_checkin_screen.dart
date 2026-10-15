@@ -1,21 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:intl/intl.dart';
+import '../services/profile_service.dart';
 
 class DailyCheckInScreen extends StatefulWidget {
   const DailyCheckInScreen({super.key});
 
   @override
-  State<DailyCheckInScreen> createState() => _DailyCheckInScreenState;
+  State<DailyCheckInScreen> createState() => _DailyCheckInScreenState();
 }
 
 class _DailyCheckInScreenState extends State<DailyCheckInScreen> {
   final SupabaseClient _supabase = Supabase.instance.client;
-  final _sleepController = TextEditingController(text: '7.5');
-  final _moodController = TextEditingController(text: '8');
-  final _energyController = TextEditingController(text: '7');
-  final _stressController = TextEditingController(text: '5');
-  final _hydrationController = TextEditingController(text: 'good');
+  final _sleepController = TextEditingController();
+  final _moodController = TextEditingController();
+  final _energyController = TextEditingController();
+  final _stressController = TextEditingController();
   final _notesController = TextEditingController();
   bool _isSubmitting = false;
 
@@ -25,7 +24,7 @@ class _DailyCheckInScreenState extends State<DailyCheckInScreen> {
   @override
   void initState() {
     super.initState();
-    _selectedHydration = _hydrationOptions[2];
+    _selectedHydration = null;
   }
 
   @override
@@ -34,7 +33,6 @@ class _DailyCheckInScreenState extends State<DailyCheckInScreen> {
     _moodController.dispose();
     _energyController.dispose();
     _stressController.dispose();
-    _hydrationController.dispose();
     _notesController.dispose();
     super.dispose();
   }
@@ -46,21 +44,31 @@ class _DailyCheckInScreenState extends State<DailyCheckInScreen> {
       );
       return;
     }
+    final sleep = double.tryParse(_sleepController.text);
+    final enteredScores = [_moodController.text, _energyController.text, _stressController.text]
+        .where((value) => value.trim().isNotEmpty)
+        .map(int.tryParse)
+        .toList();
+    if ((_sleepController.text.trim().isNotEmpty && (sleep == null || sleep < 0 || sleep > 24)) ||
+        enteredScores.any((value) => value == null || value < 1 || value > 10)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter sleep from 0–24 hours and scores from 1–10.')),
+      );
+      return;
+    }
 
     setState(() => _isSubmitting = true);
 
     try {
       await _supabase.from('daily_check_ins').insert({
-        'mother_profile_id': _getCurrentProfileId(),
+        'mother_profile_id': await ProfileService.motherProfileId(),
         'check_in_date': DateTime.now().toIso8601String(),
-        'sleep_duration_hours': double.tryParse(_sleepController.text) ?? 0.0,
-        'sleep_quality': 7, // Default - could add slider
-        'mood': int.tryParse(_moodController.text) ?? 5,
-        'energy': int.tryParse(_energyController.text) ?? 5,
-        'stress': int.tryParse(_stressController.text) ?? 5,
+        'sleep_duration_hours': sleep,
+        'mood': int.tryParse(_moodController.text),
+        'energy': int.tryParse(_energyController.text),
+        'stress': int.tryParse(_stressController.text),
         'hydration_status': _selectedHydration,
         'notes': _notesController.text.isNotEmpty ? _notesController.text : null,
-        'is_demo': false,
         'created_at': DateTime.now().toIso8601String(),
       });
 
@@ -79,11 +87,6 @@ class _DailyCheckInScreenState extends State<DailyCheckInScreen> {
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
-  }
-
-  String _getCurrentProfileId() {
-    // Return the current mother's profile ID
-    return 'current-mother-profile';
   }
 
   @override
@@ -124,7 +127,7 @@ class _DailyCheckInScreenState extends State<DailyCheckInScreen> {
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: _buildScoreRow(Icons.energy, 'Energy', _energyController,
+                    child: _buildScoreRow(Icons.bolt, 'Energy', _energyController,
                         const Text('1-10')),
                   ),
                 ],
@@ -141,7 +144,7 @@ class _DailyCheckInScreenState extends State<DailyCheckInScreen> {
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: _selectedHydration,
+                initialValue: _selectedHydration,
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
                   hintText: 'Select hydration status',
@@ -204,7 +207,7 @@ class _DailyCheckInScreenState extends State<DailyCheckInScreen> {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children [
+              children: [
                 Text(
                   label,
                   style: const TextStyle(fontSize: 14, color: Color(0xFF880E4F)),
@@ -231,31 +234,39 @@ class _DailyCheckInScreenState extends State<DailyCheckInScreen> {
       Widget trailing) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children:
-          [
-            Row(
-              children: [
-                Icon(icon, size: 18, color: Color(0xFF880E4F)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: const TextStyle(fontSize: 14, color: Color(0xFF880E4F)),
-                  ),
-                ),
-                Text(
-                  controller.text,
-                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                ),
-              ],
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 18, color: const Color(0xFF880E4F)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(fontSize: 14, color: Color(0xFF880E4F)),
+              ),
             ),
-            const SizedBox(height: 4),
-            LinearProgressIndicator(
-              value: double.tryParse(controller.text) / 10 ?? 0.5,
-              minHeight: 4,
-              borderRadius: BorderRadius.circular(2),
+            Text(
+              controller.text,
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
             ),
           ],
+        ),
+        const SizedBox(height: 4),
+        TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            hintText: 'Enter a score from 1 to 10',
+            border: OutlineInputBorder(),
+            suffixText: '1–10',
+          ),
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: 6),
+        LinearProgressIndicator(
+          value: ((double.tryParse(controller.text) ?? 5) / 10).clamp(0.0, 1.0).toDouble(),
+          minHeight: 4,
+          borderRadius: BorderRadius.circular(2),
         ),
       ],
     );

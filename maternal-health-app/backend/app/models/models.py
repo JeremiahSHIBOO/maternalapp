@@ -46,7 +46,7 @@ class User(Base):
     # Doctor assignments
     assigned_doctor = relationship("DoctorAssignment", back_populates="mother_user")
     # Audit events
-    audit_events = relationship("AuditEvent", back_populates "target_user"
+    audit_events = relationship("AuditEvent", back_populates="target_user")
 
 
 class MotherPregnancyProfile(Base):
@@ -313,7 +313,7 @@ class MedicalDocument(Base):
     mother_profile = relationship("MotherPregnancyProfile", back_populates="medical_documents")
 
 
-ClinicianNote(Base):
+class ClinicianNote(Base):
     """Clinician consultation notes."""
     __tablename__ = "clinician_notes"
 
@@ -344,8 +344,8 @@ class BabyProfile(Base):
         Integer, ForeignKey("mother_pregnancy_profiles.id"), nullable=False
     )
     birth_date = Column(DateTime, nullable=True)
-    birth_weight = Column(DECIMAL(10, 2), nullable=True, unit="kg")
-    birth_length = Column(DECIMAL(10, 2), nullable=True, unit="cm")
+    birth_weight = Column(DECIMAL(10, 2), nullable=True)  # birth weight in kg
+    birth_length = Column(DECIMAL(10, 2), nullable=True)  # birth length in cm
     gender = Column(String(50), nullable=True)
     is_demo = Column(Boolean, default=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

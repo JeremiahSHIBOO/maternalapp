@@ -1,19 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 class PartnerHomeScreen extends StatefulWidget {
   const PartnerHomeScreen({super.key});
 
   @override
-  State<PartnerHomeScreen> createState() => _PartnerHomeScreenState;
+  State<PartnerHomeScreen> createState() => _PartnerHomeScreenState();
 }
 
 class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
-  final SupabaseClient _supabase = Supabase.instance.client;
-  int _pendingTasks = 3;
-  double _monthlyExpenses = 14250;
-  String _activeStage = 'Trimester 2';
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -39,7 +33,7 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
                 _buildSummaryCard(
                   Icons.task,
                   'Pending Tasks',
-                  '$_pendingTasks Tasks',
+                  'No shared data',
                   Color(0xFFE3F2FD),
                   Colors.blue,
                 ),
@@ -47,8 +41,8 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
                 _buildSummaryCard(
                   Icons.money,
                   'Monthly Expenses',
-                  '₹ $_monthlyExpenses',
-                  Color(0FFF3E5),
+                  'No shared data',
+                  Color(0xFFFFF3E5),
                   Color(0xFFE91E63),
                 ),
               ],
@@ -77,7 +71,7 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
                   context,
                   Icons.medical_services,
                   'Expenses',
-                  Color(0FFF3E5),
+                  Color(0xFFFFF3E5),
                   Color(0xFFE91E63),
                   '/partner/expenses',
                 ),
@@ -93,7 +87,7 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
                   context,
                   Icons.people,
                   'Family',
-                  Color(0FFF3E5),
+                  Color(0xFFFFF3E5),
                   Color(0xFF8BC34A),
                   '/partner/family',
                 ),
@@ -149,7 +143,9 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
     String route,
   ) {
     return ElevatedButton.icon(
-      onPressed: () => Navigator.pushNamed(context, route),
+      onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$label will appear after a mother shares access with your account.')),
+      ),
       icon: Icon(icon, color: accentColor),
       label: Text(label),
       style: ElevatedButton.styleFrom(
@@ -179,7 +175,7 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
                 const SizedBox(width: 8),
                 const Text('Last Feed:'),
                 const Spacer(),
-                Text('3:15 AM', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                Text('No shared data', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
               ],
             ),
             const SizedBox(height: 4),
@@ -189,7 +185,7 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
                 const SizedBox(width: 8),
                 const Text('Next Feeding:'),
                 const Spacer(),
-                Text('Every 3 hours', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                Text('Connect to a mother profile to view care logs', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
               ],
             ),
           ],

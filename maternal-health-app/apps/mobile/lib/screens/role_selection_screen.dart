@@ -1,10 +1,39 @@
 import 'package:flutter/material.dart';
-import 'screens/mother_home_screen.dart';
-import 'screens/partner_home_screen.dart';
-import 'screens/doctor_portal_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-class RoleSelectionScreen extends StatelessWidget {
+class RoleSelectionScreen extends StatefulWidget {
   const RoleSelectionScreen({super.key});
+
+  @override
+  State<RoleSelectionScreen> createState() => _RoleSelectionScreenState();
+}
+
+class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
+  bool _savingRole = false;
+
+  Future<void> _selectRole(String role, String route) async {
+    if (_savingRole) return;
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      Navigator.pushNamed(context, '/login');
+      return;
+    }
+    setState(() => _savingRole = true);
+    try {
+      await Supabase.instance.client.from('profiles').update({'role': role}).eq('id', user.id);
+      if (role == 'mother') {
+        await Supabase.instance.client.from('pregnancy_profiles').upsert(
+          {'user_id': user.id},
+          onConflict: 'user_id',
+        );
+      }
+      if (mounted) Navigator.pushReplacementNamed(context, route);
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not save your role: $error')));
+    } finally {
+      if (mounted) setState(() => _savingRole = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,6 +61,7 @@ class RoleSelectionScreen extends StatelessWidget {
               'MatruCare Platform',
               style: TextStyle(fontSize: 16, color: Color(0xFFAD1457)),
             ),
+            if (_savingRole) const Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()),
             const SizedBox(height: 48),
             _buildRoleCard(
               context,
@@ -39,25 +69,25 @@ class RoleSelectionScreen extends StatelessWidget {
               'Track pregnancy, baby growth, and wellbeing',
               Colors.pink[100]!,
               Colors.pink[300]!,
-              () => Navigator.pushNamed(context, '/mother-home'),
+              () => _selectRole('mother', '/mother-home'),
             ),
             const SizedBox(height: 16),
             _buildRoleCard(
               context,
               '👨‍💼 Partner',
-              'Family support, tasks, and expenses',
+              'Partner dashboard; shared records are not set up yet',
               Color(0xFFE8F5E9),
               Color(0xFFA5D6A7),
-              () => Navigator.pushNamed(context, '/partner-home'),
+              () => _selectRole('partner', '/partner-home'),
             ),
             const SizedBox(height: 16),
             _buildRoleCard(
               context,
               '🩺 Doctor',
-              'Clinical dashboard and patient records',
+              'Clinician dashboard; patient assignments are not set up yet',
               Color(0xFFE3F2FD),
               Color(0xBBDEFB),
-              () => Navigator.pushNamed(context, '/doctor-portal'),
+              () => _selectRole('doctor', '/doctor-portal'),
             ),
             const SizedBox(height: 32),
             const Text(

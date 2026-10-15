@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'role_selection_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,6 +14,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _isLoggingIn = false;
   bool _isSigningUp = false;
+  bool _isSignUpMode = false;
 
   @override
   void dispose() {
@@ -53,6 +53,7 @@ class _LoginScreenState extends State<LoginScreen> {
       await Supabase.instance.client.auth.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text,
+        data: {'full_name': _emailController.text.trim().split('@').first},
       );
       // Sign up success - may need email verification
       if (!mounted) return;
@@ -72,8 +73,8 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _signInWithGoogle() async {
     try {
       await Supabase.instance.client.auth.signInWithOAuth(
-        Provider.google,
-        redirectTo: 'com.matrucare.app:/callback',
+        OAuthProvider.google,
+        redirectTo: 'com.matrucare.app://login-callback',
       );
     } on AuthException catch (e) {
       if (!mounted) return;
@@ -115,8 +116,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 32),
-              const TextField(
-                decoration: InputDecoration(
+              TextFormField(
+                decoration: const InputDecoration(
                   labelText: 'Email',
                   prefixIcon: Icon(Icons.email),
                   border: OutlineInputBorder(),
@@ -134,7 +135,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 },
               ),
               const SizedBox(height: 16),
-              TextField(
+              TextFormField(
                 decoration: const InputDecoration(
                   labelText: 'Password',
                   prefixIcon: Icon(Icons.lock),
@@ -153,43 +154,25 @@ class _LoginScreenState extends State<LoginScreen> {
                 },
               ),
               const SizedBox(height: 24),
-              _isLoggingIn
+              _isLoggingIn || _isSigningUp
                   ? const CircularProgressIndicator()
                   : ElevatedButton(
-                      onPressed: _signIn,
-                      child: const Text('Log In'),
+                      onPressed: _isSignUpMode ? _signUp : _signIn,
+                      child: Text(_isSignUpMode ? 'Create Account' : 'Log In'),
                     ),
               const SizedBox(height: 16),
-              _isSigningUp
-                  ? const CircularProgressIndicator()
-                  : TextButton(
-                      onPressed: _signUp,
-                      child: const Text('Create Account'),
-                    ),
+              TextButton(
+                onPressed: (_isLoggingIn || _isSigningUp)
+                    ? null
+                    : () => setState(() => _isSignUpMode = !_isSignUpMode),
+                child: Text(_isSignUpMode ? 'Already registered? Log in' : 'Create Account'),
+              ),
               const SizedBox(height: 16),
               const Divider(),
               ListTile(
-                leading: Icon(Icons.g_emoji, color: Colors.red),
+                leading: const Icon(Icons.g_mobiledata, color: Colors.red),
                 title: const Text('Continue with Google'),
                 onTap: _signInWithGoogle,
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Or continue as a guest',
-                style: TextStyle(fontSize: 12, color: Color(0xFF880E4F)),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () {
-                  // Skip auth - go to role selection with demo data
-                  Navigator.pushReplacementNamed(context, '/role-selection');
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFFFDF9),
-                  foregroundColor: Color(0xFF880E4F),
-                  side: const Border(color: Color(0xFF880E4F)),
-                ),
-                child: const Text('Continue as Guest'),
               ),
             ],
           ),

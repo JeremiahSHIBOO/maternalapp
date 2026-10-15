@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/profile_service.dart';
 
 class SymptomTrackerScreen extends StatefulWidget {
   const SymptomTrackerScreen({super.key});
@@ -13,6 +14,7 @@ class _SymptomTrackerScreenState extends State<SymptomTrackerScreen> {
   final _symptomController = TextEditingController();
   String _selectedSymptom = '';
   int _severity = 5;
+  bool _isLoggingIn = false;
   final List<String> _symptoms = [
     'Morning Sickness',
     'Lower Back Pain',
@@ -32,13 +34,14 @@ class _SymptomTrackerScreenState extends State<SymptomTrackerScreen> {
   Future<void> _logSymptom() async {
     if (_selectedSymptom.isEmpty) return;
 
+    setState(() => _isLoggingIn = true);
     try {
       await _supabase.from('symptom_logs').insert({
-        'mother_profile_id': _getCurrentProfileId(),
+        'mother_profile_id': await ProfileService.motherProfileId(),
         'symptom_name': _selectedSymptom,
         'severity': _severity,
         'log_date': DateTime.now().toIso8601String(),
-        'is_demo': false,
+        'notes': _symptomController.text.trim().isEmpty ? null : _symptomController.text.trim(),
       });
 
       if (!mounted) return;
@@ -54,13 +57,9 @@ class _SymptomTrackerScreenState extends State<SymptomTrackerScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error logging symptom: $e')),
       );
+    } finally {
+      if (mounted) setState(() => _isLoggingIn = false);
     }
-  }
-
-  String _getCurrentProfileId() async {
-    // In a real app, get the mother's profile ID from the user session
-    // For now, return a placeholder
-    return 'current-mother-profile';
   }
 
   @override
@@ -84,7 +83,7 @@ class _SymptomTrackerScreenState extends State<SymptomTrackerScreen> {
 
             // Symptom selection
             DropdownButtonFormField<String>(
-              value: _selectedSymptom.isEmpty ? null : _selectedSymptom,
+              initialValue: _selectedSymptom.isEmpty ? null : _selectedSymptom,
               decoration: const InputDecoration(
                 labelText: 'Select Symptom',
                 border: OutlineInputBorder(),

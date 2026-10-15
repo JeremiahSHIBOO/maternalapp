@@ -11,9 +11,9 @@ class MotherHomeScreen extends StatefulWidget {
 
 class _MotherHomeScreenState extends State<MotherHomeScreen> {
   final SupabaseClient _supabase = Supabase.instance.client;
-  String _currentWeek = '20';
-  double _progress = 0.60;
-  String _activeStage = 'Trimester 2 (Wk 20)';
+  String _currentWeek = '—';
+  double _progress = 0;
+  String _activeStage = 'Add your last menstrual period date';
 
   @override
   void initState() {
@@ -22,23 +22,44 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
   }
 
   Future<void> _loadCurrentWeek() async {
-    // In a real app, this would fetch from Supabase
-    // For now, set default
-    setState(() {
-      _currentWeek = '20';
-      _progress = 0.60;
-      _activeStage = 'Trimester 2 (Wk 20)';
-    });
+    try {
+      final user = _supabase.auth.currentUser;
+      if (user == null) return;
+      final profile = await _supabase.from('pregnancy_profiles').select('lmp_date').eq('user_id', user.id).maybeSingle();
+      final rawDate = profile?['lmp_date'] as String?;
+      if (rawDate == null) return;
+      final days = DateTime.now().difference(DateTime.parse(rawDate)).inDays;
+      final week = (days ~/ 7).clamp(0, 42);
+      final trimester = week < 13 ? 1 : week < 28 ? 2 : 3;
+      if (!mounted) return;
+      setState(() {
+        _currentWeek = '$week';
+        _progress = (week / 40).clamp(0.0, 1.0).toDouble();
+        _activeStage = 'Trimester $trimester · Week $week';
+      });
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not load pregnancy profile: $error')));
+    }
   }
 
-  void _updateWeek(String week) {
-    setState(() {
-      _currentWeek = week;
-      // Update progress based on week
-      final weekNum = int.tryParse(week.replaceAll('Week ', '')) ?? 1;
-      _progress = weekNum / 40.0;
-      _activeStage = 'Week $_currentWeek';
-    });
+  Future<void> _editPregnancyDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: now.subtract(const Duration(days: 140)),
+      firstDate: now.subtract(const Duration(days: 300)),
+      lastDate: now,
+      helpText: 'Select the first day of your last period',
+    );
+    if (picked == null) return;
+    try {
+      final user = _supabase.auth.currentUser;
+      if (user == null) return;
+      await _supabase.from('pregnancy_profiles').update({'lmp_date': DateFormat('yyyy-MM-dd').format(picked)}).eq('user_id', user.id);
+      await _loadCurrentWeek();
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not save pregnancy date: $error')));
+    }
   }
 
   @override
@@ -51,9 +72,8 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
-            onPressed: () {
-              // Navigate to settings
-            },
+            tooltip: 'Set pregnancy date',
+            onPressed: _editPregnancyDate,
           ),
         ],
       ),
@@ -106,28 +126,28 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
                 _buildStatCard(
                   Icons.schedule,
                   'Appointments',
-                  '2 this month',
+                  'No appointments yet',
                   Color(0xFFE3F2FD),
                   Colors.blue,
                 ),
                 _buildStatCard(
                   Icons.favorite,
-                  'Baby Kicks',
-                  'Daily movements',
+                  'Movement',
+                  'Follow your care team’s guidance',
                   Color(0xFFF3E5F5),
                   Color(0xFFE91E63),
                 ),
                 _buildStatCard(
-                  Icons.water,
+                  Icons.water_drop,
                   'Hydration',
-                  '2.5L / 3.0L',
+                  'Track in daily check-in',
                   Color(0xFFE8F5E9),
                   Color(0xFF4CAF50),
                 ),
                 _buildStatCard(
                   Icons.favorite,
                   'Weight',
-                  '13.2 kg',
+                  'No measurements yet',
                   Color(0xFFE8F5E9),
                   Color(0xFF8BC34A),
                 ),
@@ -136,7 +156,7 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
             const SizedBox(height: 24),
 
             // Navigation buttons to key screens
-            const Text(
+            Text(
               'Quick Access',
               style: TextStyle(
                 fontSize: 18,
@@ -159,19 +179,19 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
                 ),
                 _navButton(
                   context,
-                  Icons.calendar_today,
-                  'Appointments',
+                  Icons.check_circle_outline,
+                  'Daily check-in',
                   Color(0xFFE8F5E9),
                   Color(0xFF8BC34A),
-                  '/appointments',
+                  '/check-in',
                 ),
                 _navButton(
                   context,
-                  Icons.baby_changing_station,
-                  'Baby Care',
+                  Icons.health_and_safety,
+                  'Track symptoms',
                   Color(0xFFF3E5F5),
                   Color(0xFFE91E63),
-                  '/baby-care',
+                  '/symptoms',
                 ),
                 _navButton(
                   context,
@@ -179,7 +199,7 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
                   'Doctor',
                   Color(0xFFE3F2FD),
                   Colors.blue,
-                  '/doctor',
+                  '/doctor-portal',
                 ),
               ],
             ),
@@ -246,7 +266,7 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Baby Growth - Week $_currentWeek',
               style: TextStyle(
                 fontSize: 18,
@@ -255,7 +275,6 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            // Placeholder for 3D growth illustration
             Container(
               height: 150,
               decoration: BoxDecoration(
@@ -265,7 +284,7 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
               ),
               child: Center(
                 child: Text(
-                  '3D Illustration\nWeek $_currentWeek',
+                  'Pregnancy week $_currentWeek',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
@@ -283,7 +302,7 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
-                    'About the size of a Banana 🍌',
+                    'Your pregnancy timeline is an estimate based on your last period.',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey[700],
@@ -295,15 +314,16 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
             ),
             const SizedBox(height: 8),
             // Development text
-            const Text(
-              'Length: ~25.6 cm | Weight: ~300 g',
-              style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+            Text(
+              'Ask your clinician about growth measurements at your visits.',
+              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+            ),
             const SizedBox(height: 12),
             // Educational summary
-            const Padding(
-              padding: EdgeInsets.only(left: 4.0),
+            Padding(
+              padding: const EdgeInsets.only(left: 4.0),
               child: Text(
-                'Baby is developing rapidly this week. Internal organs are forming, and baby can hear sounds from outside the womb.',
+                'This app does not provide diagnosis or replace prenatal care. Contact your clinician with health concerns.',
                 style: TextStyle(fontSize: 10, color: Colors.grey[700], height: 1.3),
               ),
             ),

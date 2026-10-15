@@ -11,8 +11,6 @@ dependencies:
     sdk: flutter
   supabase_flutter: ^2.5.0
   intl: ^0.18.0
-  syncfusion_flutter_charts: ^20.1.0
-  provider: ^6.0.5
   cupertino_icons: ^1.0.6
 
 dev_dependencies:
@@ -22,5 +20,3 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  assets:
-    - assets/images/
