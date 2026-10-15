@@ -1,0 +1,165 @@
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+class SymptomTrackerScreen extends StatefulWidget {
+  const SymptomTrackerScreen({super.key});
+
+  @override
+  State<SymptomTrackerScreen> createState() => _SymptomTrackerScreenState();
+}
+
+class _SymptomTrackerScreenState extends State<SymptomTrackerScreen> {
+  final SupabaseClient _supabase = Supabase.instance.client;
+  final _symptomController = TextEditingController();
+  String _selectedSymptom = '';
+  int _severity = 5;
+  final List<String> _symptoms = [
+    'Morning Sickness',
+    'Lower Back Pain',
+    'Headache',
+    'Swelling',
+    'Heartburn',
+    'Fatigue',
+    'Sleep Issues'
+  ];
+
+  @override
+  void dispose() {
+    _symptomController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _logSymptom() async {
+    if (_selectedSymptom.isEmpty) return;
+
+    try {
+      await _supabase.from('symptom_logs').insert({
+        'mother_profile_id': _getCurrentProfileId(),
+        'symptom_name': _selectedSymptom,
+        'severity': _severity,
+        'log_date': DateTime.now().toIso8601String(),
+        'is_demo': false,
+      });
+
+      if (!mounted) return;
+      _symptomController.clear();
+      _selectedSymptom = '';
+      setState(() {});
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Symptom logged successfully')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error logging symptom: $e')),
+      );
+    }
+  }
+
+  String _getCurrentProfileId() async {
+    // In a real app, get the mother's profile ID from the user session
+    // For now, return a placeholder
+    return 'current-mother-profile';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Symptom Tracker'),
+        backgroundColor: const Color(0xFF880E4F),
+        foregroundColor: Colors.white,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Log a Symptom',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 24),
+
+            // Symptom selection
+            DropdownButtonFormField<String>(
+              value: _selectedSymptom.isEmpty ? null : _selectedSymptom,
+              decoration: const InputDecoration(
+                labelText: 'Select Symptom',
+                border: OutlineInputBorder(),
+              ),
+              items: _symptoms.map((String symptom) {
+                return DropdownMenuItem<String>(
+                  value: symptom,
+                  child: Text(symptom),
+                );
+              }).toList(),
+              onChanged: (String? newValue) {
+                setState(() {
+                  _selectedSymptom = newValue!;
+                });
+              },
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please select a symptom';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // Severity slider
+            const Text(
+              'Severity (1-10)',
+              style: TextStyle(fontSize: 16),
+            ),
+            Slider(
+              value: _severity.toDouble(),
+              min: 1,
+              max: 10,
+              divisions: 9,
+              label: _severity.toString(),
+              onChanged: (double value) {
+                setState(() {
+                  _severity = value.round();
+                });
+              },
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'You selected: $_severity',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF880E4F)),
+            ),
+            const SizedBox(height: 16),
+
+            // Notes
+            TextField(
+              controller: _symptomController,
+              decoration: const InputDecoration(
+                labelText: 'Notes (optional)',
+                border: OutlineInputBorder(),
+                hintText: 'Describe additional details',
+              ),
+              maxLines: 2,
+            ),
+            const SizedBox(height: 24),
+
+            // Log button
+            ElevatedButton(
+              onPressed: _logSymptom,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF880E4F),
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 50),
+              ),
+              child: _isLoggingIn
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text('Log Symptom', style: TextStyle(fontSize: 18)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
