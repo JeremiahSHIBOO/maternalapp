@@ -19,7 +19,7 @@ class StartScreen extends StatelessWidget {
               SizedBox(height: 16),
               Text('Connect Supabase to start', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
               SizedBox(height: 8),
-              Text('Run the app with SUPABASE_URL and SUPABASE_ANON_KEY dart defines. See README.md.'),
+              Text('Add your Supabase project URL and public key to the .env file, then restart the app. See README.md.'),
             ]),
           ),
         ),
