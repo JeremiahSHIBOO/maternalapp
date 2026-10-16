@@ -164,7 +164,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: const Icon(Icons.spa_outlined,
                     color: Color(0xFF70445E), size: 22)),
             const SizedBox(width: 10),
-            Text('MatruCare',
+            Text('Careloom',
                 style: Theme.of(context)
                     .textTheme
                     .titleLarge
@@ -237,7 +237,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 : () => setState(() => _isSignUpMode = !_isSignUpMode),
             child: Text(_isSignUpMode
                 ? 'Already registered?  Sign in'
-                : 'New to MatruCare?  Create an account'),
+                : 'New to Careloom?  Create an account'),
           ),
           const SizedBox(height: 10),
           Row(children: [

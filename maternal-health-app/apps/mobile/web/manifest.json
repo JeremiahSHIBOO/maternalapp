@@ -1,6 +1,6 @@
 {
-    "name": "maternal_health_app",
-    "short_name": "maternal_health_app",
+    "name": "Careloom",
+    "short_name": "Careloom",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

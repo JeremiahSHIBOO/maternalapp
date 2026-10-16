@@ -65,12 +65,12 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                           width: 44,
                           height: 44,
                           decoration: BoxDecoration(
-                              color: const Color(0xFFF3E8ED),
+                              color: const Color(0xFFFCE5F0),
                               borderRadius: BorderRadius.circular(15)),
                           child: const Icon(Icons.spa_outlined,
-                              color: Color(0xFF70445E), size: 24)),
+                              color: Color(0xFFBE1262), size: 24)),
                       const SizedBox(width: 12),
-                      Text('MatruCare',
+                      Text('Careloom',
                           style: Theme.of(context)
                               .textTheme
                               .titleLarge
@@ -99,7 +99,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                                     .textTheme
                                     .labelSmall
                                     ?.copyWith(
-                                        color: const Color(0xFF806276),
+                                        color: const Color(0xFFA04470),
                                         letterSpacing: 1.5,
                                         fontWeight: FontWeight.w700)),
                             const SizedBox(height: 10),
@@ -110,7 +110,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                                     ?.copyWith(fontSize: compact ? 26 : 32)),
                             const SizedBox(height: 8),
                             Text(
-                                'We’ll shape your MatruCare space around the support you need.',
+                                'We’ll shape your Careloom space around the support you need.',
                                 style: Theme.of(context).textTheme.bodyMedium),
                           ]),
                     ),
@@ -123,7 +123,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                             Icons.favorite_outline,
                             'Mother',
                             'Pregnancy, baby growth and wellbeing',
-                            const Color(0xFF70445E),
+                            const Color(0xFFBE1262),
                             tiles,
                             () => _selectRole('mother', '/mother-home')),
                         _buildRoleCard(

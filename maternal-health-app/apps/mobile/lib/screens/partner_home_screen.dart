@@ -32,6 +32,7 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
   bool _refreshing = false;
   int _loadGeneration = 0;
   int? _selectedGrowthWeek;
+  int _selectedTab = 0;
 
   @override
   void initState() {
@@ -156,7 +157,7 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('MatruCare'),
+        title: const Text('Careloom'),
         actions: [
           IconButton(
             tooltip: 'Refresh shared information',
@@ -167,6 +168,20 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
               icon: const Icon(Icons.logout),
               tooltip: 'Sign out',
               onPressed: () => signOutOfCareApp(context)),
+        ],
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _selectedTab,
+        onDestinationSelected: (index) => setState(() => _selectedTab = index),
+        backgroundColor: Colors.white,
+        indicatorColor: const Color(0xFFFCE5F0),
+        destinations: const [
+          NavigationDestination(
+              icon: Icon(Icons.wb_sunny_outlined), label: 'Today'),
+          NavigationDestination(
+              icon: Icon(Icons.child_care_outlined), label: 'Baby'),
+          NavigationDestination(
+              icon: Icon(Icons.people_outline), label: 'Together'),
         ],
       ),
       body: _loading
@@ -191,14 +206,14 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Icon(Icons.favorite_border,
-                        size: 42, color: Color(0xFF70445E)),
+                        size: 42, color: Color(0xFFBE1262)),
                     const SizedBox(height: 12),
                     Text('Your shared care space is waiting',
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.titleLarge),
                     const SizedBox(height: 8),
                     Text(
-                        'Ask the Mother to connect your MatruCare account using this email address: ${_supabase.auth.currentUser?.email ?? 'your account email'}. She chooses what information to share.',
+                        'Ask the Mother to connect your Careloom account using this email address: ${_supabase.auth.currentUser?.email ?? 'your account email'}. She chooses what information to share.',
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodyMedium),
                     const SizedBox(height: 12),
@@ -253,9 +268,16 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
     return RefreshIndicator(
       onRefresh: _loadPartnerHome,
       child: ListView(
+        key: PageStorageKey('partner-tab-$_selectedTab'),
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
         children: [
-          Text('Here for her, together',
+          Text(
+              _selectedTab == 1
+                  ? 'Growing, together.'
+                  : _selectedTab == 2
+                      ? 'A little closer.'
+                      : 'Here for her, together',
               style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 4),
           Text(
@@ -263,18 +285,18 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
               style: Theme.of(context).textTheme.bodyMedium),
           const SizedBox(height: 16),
           if (hasSharedInfo) ...[
-            if (_sharedData['pregnancy_progress'] is Map)
+            if (_selectedTab == 1 && _sharedData['pregnancy_progress'] is Map)
               _buildPregnancyProgress(
                   context,
                   Map<String, dynamic>.from(
                       _sharedData['pregnancy_progress'] as Map)),
-            if (_sharedData['daily_wellbeing'] is List)
+            if (_selectedTab == 0 && _sharedData['daily_wellbeing'] is List)
               _buildWellbeing(context,
                   List<dynamic>.from(_sharedData['daily_wellbeing'] as List)),
-            if (_sharedData['symptoms'] is List)
+            if (_selectedTab == 0 && _sharedData['symptoms'] is List)
               _buildSymptoms(
                   context, List<dynamic>.from(_sharedData['symptoms'] as List)),
-            if (_sharedData['measurements'] is List)
+            if (_selectedTab == 0 && _sharedData['measurements'] is List)
               _buildMeasurements(context,
                   List<dynamic>.from(_sharedData['measurements'] as List)),
           ] else
@@ -294,8 +316,22 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
                 ),
               ),
             ),
-          const SizedBox(height: 16),
-          _buildConversation(context),
+          if (_selectedTab == 1 && _sharedData['pregnancy_progress'] is! Map)
+            const Padding(
+                padding: EdgeInsets.symmetric(vertical: 32),
+                child: Text(
+                    'Pregnancy progress is private until your partner chooses to share it.')),
+          if (_selectedTab == 0 &&
+              !['daily_wellbeing', 'symptoms', 'measurements']
+                  .any(_sharedData.containsKey))
+            const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Text(
+                    'No wellbeing categories are shared yet. You can leave a message in Together.')),
+          if (_selectedTab == 2) ...[
+            const SizedBox(height: 16),
+            _buildConversation(context),
+          ],
         ],
       ),
     );
@@ -490,7 +526,7 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
             children: [
               Row(children: [
                 const Icon(Icons.health_and_safety_outlined,
-                    color: Color(0xFF70445E)),
+                    color: Color(0xFFBE1262)),
                 const SizedBox(width: 8),
                 Text('Symptoms she chose to share',
                     style: Theme.of(context).textTheme.titleLarge),
@@ -565,7 +601,7 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
             ]),
             const SizedBox(height: 8),
             Text(
-                'Entered from ${_sourceLabel(latest['measurement_source']?.toString())}. MatruCare does not measure or assess these readings.',
+                'Entered from ${_sourceLabel(latest['measurement_source']?.toString())}. Careloom does not measure or assess these readings.',
                 style: Theme.of(context).textTheme.bodySmall),
           ],
         ]),
@@ -580,7 +616,7 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
         padding: const EdgeInsets.all(18),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            const Icon(Icons.chat_bubble_outline, color: Color(0xFF70445E)),
+            const Icon(Icons.chat_bubble_outline, color: Color(0xFFBE1262)),
             const SizedBox(width: 8),
             Expanded(
                 child: Text('Your conversation',
@@ -595,9 +631,9 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
             height: 220,
             width: double.infinity,
             decoration: BoxDecoration(
-              color: const Color(0xFFFFF8FA),
+              color: const Color(0xFFFFF2F8),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFEFE3E8)),
+              border: Border.all(color: const Color(0xFFF5DDE9)),
             ),
             child: _messages.isEmpty
                 ? Center(
@@ -630,7 +666,7 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
                               horizontal: 12, vertical: 8),
                           decoration: BoxDecoration(
                             color:
-                                isMine ? const Color(0xFFF1E8ED) : Colors.white,
+                                isMine ? const Color(0xFFFCE5F0) : Colors.white,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Column(
@@ -683,8 +719,8 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
 
   Widget _dataChip(String label, String value) => Chip(
         label: Text('$label · $value'),
-        backgroundColor: const Color(0xFFFFF8FA),
-        side: const BorderSide(color: Color(0xFFEFE3E8)),
+        backgroundColor: const Color(0xFFFFF2F8),
+        side: const BorderSide(color: Color(0xFFF5DDE9)),
       );
 
   String _formatDate(dynamic value) {

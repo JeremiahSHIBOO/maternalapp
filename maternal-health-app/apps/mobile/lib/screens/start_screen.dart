@@ -105,9 +105,9 @@ class _WelcomeShell extends StatelessWidget {
                 constraints: const BoxConstraints(maxWidth: 1120),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: const Color(0xFFFFF8FB),
                     borderRadius: BorderRadius.circular(compact ? 26 : 34),
-                    border: Border.all(color: const Color(0xFFECE4E5)),
+                    border: Border.all(color: const Color(0xFFF5DDE9)),
                     boxShadow: const [
                       BoxShadow(
                           color: Color(0x1470445E),
@@ -150,7 +150,7 @@ class _WelcomeShell extends StatelessWidget {
                                               .labelSmall
                                               ?.copyWith(
                                                   color:
-                                                      const Color(0xFF8B6B7D),
+                                                      const Color(0xFFA04470),
                                                   letterSpacing: 1.3)),
                                     ]),
                               ),
@@ -176,22 +176,22 @@ class _WelcomeContent extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('A LITTLE MORE SUPPORT FOR EVERY STEP',
+            Text('COMPASSIONATE CARE, EVERY STEP',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: const Color(0xFF8B6B7D), letterSpacing: 1.1)),
+                    color: const Color(0xFFA04470), letterSpacing: 1.1)),
             const SizedBox(height: 14),
-            Text('Your journey,\nsupported.',
+            Text('Your pregnancy journey,\nsupported.',
                 style: Theme.of(context)
                     .textTheme
                     .headlineMedium
-                    ?.copyWith(fontSize: 42, height: 1.08)),
+                    ?.copyWith(fontSize: 34, height: 1.12)),
             const SizedBox(height: 16),
             Text(
                 'Gentle tools for pregnancy and postpartum, with space to care for yourself along the way.',
                 style: Theme.of(context)
                     .textTheme
                     .bodyLarge
-                    ?.copyWith(color: const Color(0xFF6E626B))),
+                    ?.copyWith(color: const Color(0xFF796575))),
             const SizedBox(height: 26),
             const _WelcomeBenefit(
                 icon: Icons.favorite_border,
@@ -233,13 +233,13 @@ class _BrandHeader extends StatelessWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-                color: const Color(0xFFF3E8ED),
+                color: const Color(0xFFFCE5F0),
                 borderRadius: BorderRadius.circular(15)),
             child: const Icon(Icons.spa_outlined,
-                color: Color(0xFF70445E), size: 23),
+                color: Color(0xFFBE1262), size: 23),
           ),
           const SizedBox(width: 11),
-          Text('MatruCare',
+          Text('Careloom',
               style: Theme.of(context)
                   .textTheme
                   .titleLarge
@@ -259,9 +259,9 @@ class _WelcomeBenefit extends StatelessWidget {
           width: 34,
           height: 34,
           decoration: BoxDecoration(
-              color: const Color(0xFFF7F0F2),
+              color: const Color(0xFFFFF0F7),
               borderRadius: BorderRadius.circular(12)),
-          child: Icon(icon, color: const Color(0xFF70445E), size: 18),
+          child: Icon(icon, color: const Color(0xFFBE1262), size: 18),
         ),
         const SizedBox(width: 11),
         Expanded(
@@ -285,9 +285,9 @@ class _WelcomeArtwork extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Color(0xFFF8EDEF),
-                Color(0xFFF2E8E9),
-                Color(0xFFE8EFEB)
+                Color(0xFFFFF0F7),
+                Color(0xFFFCE0EE),
+                Color(0xFFF9EAF5)
               ]),
         ),
         child: Stack(alignment: Alignment.center, children: [
@@ -322,7 +322,7 @@ class _WelcomeArtwork extends StatelessWidget {
                     border: Border.all(color: Colors.white)),
                 child: Text('Here for every version of you',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: const Color(0xFF70445E),
+                        color: const Color(0xFFBE1262),
                         fontWeight: FontWeight.w600)),
               ),
             ),
@@ -380,7 +380,7 @@ class _MotherBabyPainter extends CustomPainter {
       ..shader = const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Color(0xFF9B6D86), Color(0xFF70445E), Color(0xFF573A50)])
+              colors: [Color(0xFF9B6D86), Color(0xFFBE1262), Color(0xFF573A50)])
           .createShader(Rect.fromLTWH(-95, -5, 190, 145));
     canvas.drawShadow(robe, const Color(0x3370445E), 12, false);
     canvas.drawPath(robe, robePaint);
@@ -402,7 +402,7 @@ class _MotherBabyPainter extends CustomPainter {
     canvas.drawCircle(
         const Offset(29, 5), 9, Paint()..color = const Color(0x55FFFFFF));
 
-    final babyFace = Paint()..color = const Color(0xFF70445E);
+    final babyFace = Paint()..color = const Color(0xFFBE1262);
     canvas.drawCircle(const Offset(31, 17), 2.1, babyFace);
     canvas.drawCircle(const Offset(52, 17), 2.1, babyFace);
     final smile = Path()

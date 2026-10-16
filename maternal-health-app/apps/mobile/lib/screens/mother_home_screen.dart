@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'daily_checkin_screen.dart';
+import '../widgets/baby_growth_viewer.dart';
 
 Future<void> signOutOfCareApp(BuildContext context) async {
   try {
@@ -49,6 +50,7 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
   bool _isLoadingDashboard = true;
   bool _isOpeningCheckIn = false;
   int _dashboardLoadGeneration = 0;
+  int _selectedTab = 0;
 
   @override
   void initState() {
@@ -586,95 +588,204 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final name =
+        (_supabase.auth.currentUser?.userMetadata?['full_name'] as String? ??
+                '')
+            .split(' ')
+            .first;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('MatruCare'),
+        title: const Text('Careloom'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.people_outline),
-            tooltip: 'Partner & sharing',
-            onPressed: () => Navigator.pushNamed(context, '/partner-sharing'),
+          PopupMenuButton<String>(
+            tooltip: 'Your account',
+            icon: const CircleAvatar(
+                backgroundColor: Color(0xFFFCE5F0),
+                child: Icon(Icons.person_outline, color: Color(0xFFBE1262))),
+            onSelected: (value) {
+              if (value == 'dates') _editPregnancyDate();
+              if (value == 'logout') signOutOfCareApp(context);
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'dates', child: Text('Pregnancy settings')),
+              PopupMenuItem(value: 'logout', child: Text('Sign out')),
+            ],
           ),
-          IconButton(
-            icon: const Icon(Icons.settings),
-            tooltip: 'Set pregnancy date',
-            onPressed: _editPregnancyDate,
-          ),
-          IconButton(
-              icon: const Icon(Icons.logout),
-              tooltip: 'Sign out',
-              onPressed: () => signOutOfCareApp(context)),
+          const SizedBox(width: 12),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 760),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildBabyGrowthSection(),
-                const SizedBox(height: 24),
-                _buildAppointmentCard(context),
-                const SizedBox(height: 16),
-                _buildWellbeingCard(context),
-                const SizedBox(height: 16),
-                _buildSymptomsCard(context),
-                const SizedBox(height: 24),
-
-                // Navigation buttons to key screens
-                Text('Your care',
-                    style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 16,
-                  runSpacing: 16,
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _selectedTab,
+        onDestinationSelected: (index) => setState(() => _selectedTab = index),
+        backgroundColor: Colors.white,
+        indicatorColor: const Color(0xFFFCE5F0),
+        destinations: const [
+          NavigationDestination(
+              icon: Icon(Icons.wb_sunny_outlined),
+              selectedIcon: Icon(Icons.wb_sunny),
+              label: 'Today'),
+          NavigationDestination(
+              icon: Icon(Icons.child_care_outlined),
+              selectedIcon: Icon(Icons.child_care),
+              label: 'Baby'),
+          NavigationDestination(
+              icon: Icon(Icons.favorite_border),
+              selectedIcon: Icon(Icons.favorite),
+              label: 'Care'),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: _loadDashboardData,
+        child: ListView(
+          key: ValueKey(_selectedTab),
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+          children: [
+            Center(
+                child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 760),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _navButton(
-                      context,
-                      Icons.dashboard,
-                      'Dashboard',
-                      Color(0xFF70445E),
-                      '/mother-home',
-                    ),
-                    _navButton(
-                      context,
-                      Icons.check_circle_outline,
-                      'Daily check-in',
-                      Color(0xFF789080),
-                      '/check-in',
-                    ),
-                    _navButton(
-                      context,
-                      Icons.health_and_safety,
-                      'Track symptoms',
-                      Color(0xFF70445E),
-                      '/symptoms',
-                    ),
-                    _navButton(
-                      context,
-                      Icons.medical_services,
-                      'Doctor',
-                      Color(0xFF789080),
-                      '/doctor-portal',
-                    ),
-                    _navButton(
-                      context,
-                      Icons.people_outline,
-                      'Partner & sharing',
-                      Color(0xFF70445E),
-                      '/partner-sharing',
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+                    if (_isLoadingDashboard)
+                      const LinearProgressIndicator(minHeight: 2),
+                    if (_selectedTab == 0) ...[
+                      Text(
+                          name.isEmpty
+                              ? 'A little care, every day.'
+                              : 'Good morning, $name.',
+                          style: Theme.of(context).textTheme.headlineMedium),
+                      const SizedBox(height: 8),
+                      Text(_pregnancyWeekNumber == null
+                          ? 'Your journey, at your pace.'
+                          : '$_currentWeek · Here with you, every step.'),
+                      const SizedBox(height: 24),
+                      _buildJourneyPreview(),
+                      const SizedBox(height: 24),
+                      Text('How are you feeling today?',
+                          style: Theme.of(context).textTheme.headlineSmall),
+                      const SizedBox(height: 8),
+                      const Text('A quiet moment to check in with yourself.'),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: _isOpeningCheckIn || _isLoadingDashboard
+                                ? null
+                                : _openCheckIn,
+                            icon: Icon(_checkedInToday
+                                ? Icons.check_circle_outline
+                                : Icons.add_circle_outline),
+                            label: Text(_checkedInToday
+                                ? 'View or edit today’s check-in'
+                                : 'Start daily check-in'),
+                          )),
+                      const SizedBox(height: 24),
+                      _buildWellbeingCard(context),
+                      const SizedBox(height: 16),
+                      _buildAppointmentCard(context),
+                      const SizedBox(height: 16),
+                      _buildSymptomsCard(context),
+                    ],
+                    if (_selectedTab == 1) ...[
+                      Text('A little more you, every week.',
+                          style: Theme.of(context).textTheme.headlineMedium),
+                      const SizedBox(height: 8),
+                      const Text('Explore the journey. Make room for wonder.'),
+                      const SizedBox(height: 24),
+                      _buildBabyGrowthSection(),
+                    ],
+                    if (_selectedTab == 2) ...[
+                      Text('You don’t have to do it alone.',
+                          style: Theme.of(context).textTheme.headlineMedium),
+                      const SizedBox(height: 8),
+                      const Text(
+                          'Your appointments, your people, your choices.'),
+                      const SizedBox(height: 24),
+                      _buildAppointmentCard(context),
+                      const SizedBox(height: 24),
+                      Card(
+                          child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(Icons.people_outline,
+                                      color: Color(0xFFBE1262), size: 32),
+                                  const SizedBox(height: 16),
+                                  Text('A little support, on your terms',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleLarge),
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                      'Connect your partner, choose what to share, and leave a note for each other.'),
+                                  const SizedBox(height: 16),
+                                  OutlinedButton.icon(
+                                      onPressed: () => Navigator.pushNamed(
+                                          context, '/partner-sharing'),
+                                      icon: const Icon(Icons.arrow_forward),
+                                      label: const Text(
+                                          'Partner, sharing & messages')),
+                                ],
+                              ))),
+                      const SizedBox(height: 16),
+                      ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.calendar_month_outlined),
+                          title: const Text('Pregnancy settings'),
+                          subtitle: const Text(
+                              'Dates, pregnancy type and your notes'),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: _editPregnancyDate),
+                    ],
+                  ]),
+            ))
+          ],
         ),
       ),
     );
   }
+
+  Widget _buildJourneyPreview() => Container(
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(
+            gradient: const LinearGradient(
+                colors: [Color(0xFFFCE0EE), Color(0xFFFFF1F8)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight),
+            border: Border.all(color: const Color(0xFFF5D3E4)),
+            borderRadius: BorderRadius.circular(24)),
+        child: Row(children: [
+          const Icon(Icons.child_care, size: 44, color: Color(0xFFBE1262)),
+          const SizedBox(width: 18),
+          Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Text(
+                    _pregnancyWeekNumber == null
+                        ? 'Your little one'
+                        : '$_currentWeek · Your little one',
+                    style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 6),
+                Text(_dueDate == null
+                    ? 'Set your dates to follow your journey.'
+                    : 'Due ${DateFormat('d MMM yyyy').format(_dueDate!)}'),
+                const SizedBox(height: 12),
+                LinearProgressIndicator(
+                    value: _progress,
+                    backgroundColor: Colors.white,
+                    color: const Color(0xFFBE1262),
+                    borderRadius: BorderRadius.circular(6)),
+                const SizedBox(height: 8),
+                TextButton.icon(
+                    onPressed: () => setState(() => _selectedTab = 1),
+                    icon: const Icon(Icons.arrow_forward, size: 18),
+                    label: const Text('Explore Baby')),
+              ])),
+        ]),
+      );
 
   Widget _buildAppointmentCard(BuildContext context) {
     final appointment = _nextAppointment;
@@ -693,7 +804,7 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
         padding: const EdgeInsets.all(18),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            const Icon(Icons.calendar_month_outlined, color: Color(0xFF70445E)),
+            const Icon(Icons.calendar_month_outlined, color: Color(0xFFBE1262)),
             const SizedBox(width: 10),
             Expanded(
                 child: Text('Next appointment',
@@ -707,7 +818,7 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
             const LinearProgressIndicator()
           else if (_appointmentsTableMissing)
             Text(
-                'Appointment setup is needed. Run supabase/dashboard_appointments.sql from this app folder in your Supabase SQL editor.',
+                'Appointments are not available yet. Your saved wellbeing and symptoms are still available.',
                 style: Theme.of(context).textTheme.bodyMedium)
           else if (appointmentDate == null)
             Text(
@@ -719,12 +830,12 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
             if (showClinician)
               Padding(
                   padding: const EdgeInsets.only(top: 4),
-                  child: Text(clinician!.trim(),
+                  child: Text(clinician.trim(),
                       style: Theme.of(context).textTheme.bodyMedium)),
             if (showLocation)
               Padding(
                   padding: const EdgeInsets.only(top: 2),
-                  child: Text(location!.trim(),
+                  child: Text(location.trim(),
                       style: Theme.of(context).textTheme.bodyMedium)),
             if ((appointment?['notes'] as String?)?.isNotEmpty == true)
               Padding(
@@ -795,11 +906,11 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
             Expanded(
                 child: Text('Your wellbeing',
                     style: Theme.of(context).textTheme.titleLarge)),
-            TextButton(
+            IconButton(
+                tooltip:
+                    _checkedInToday ? 'Edit today’s check-in' : 'Open check-in',
                 onPressed: _openCheckIn,
-                child: Text(_checkedInToday
-                    ? 'Edit today’s check-in'
-                    : 'Morning check-in')),
+                icon: const Icon(Icons.edit_outlined)),
           ]),
           Text(
             _checkInLoadError != null && checkIn == null
@@ -844,6 +955,7 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
               spacing: 8,
               runSpacing: 8,
               children: readings
+                  .where((reading) => !_isMeasurementLabel(reading.key))
                   .map((reading) => _wellbeingReadingChip(reading))
                   .toList(),
             ),
@@ -864,11 +976,25 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
           ],
           if (readings.any((reading) => _isMeasurementLabel(reading.key))) ...[
             const SizedBox(height: 8),
-            Text(
-              measurementSource == null
-                  ? 'These readings were entered in your check-in; this app did not measure them.'
-                  : 'Source you selected: ${_measurementSourceLabel(measurementSource)}. These readings were entered in your check-in; this app did not measure them.',
-              style: Theme.of(context).textTheme.bodySmall,
+            ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              title: const Text('Optional health readings'),
+              children: [
+                Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: readings
+                        .where((reading) => _isMeasurementLabel(reading.key))
+                        .map(_wellbeingReadingChip)
+                        .toList()),
+                const SizedBox(height: 8),
+                Text(
+                  measurementSource == null
+                      ? 'These readings were entered in your check-in; this app did not measure them.'
+                      : 'Source you selected: ${_measurementSourceLabel(measurementSource)}. These readings were entered in your check-in; this app did not measure them.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
             ),
           ],
           if (note != null && note.isNotEmpty) ...[
@@ -893,15 +1019,15 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFF8FA),
+                color: const Color(0xFFFFF2F8),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFEFE3E8)),
+                border: Border.all(color: const Color(0xFFF5DDE9)),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Icon(Icons.auto_awesome_outlined,
-                      size: 18, color: Color(0xFF70445E)),
+                      size: 18, color: Color(0xFFBE1262)),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(reflection['pattern'] as String,
@@ -934,14 +1060,14 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
                             height: 24,
                             alignment: Alignment.center,
                             decoration: const BoxDecoration(
-                              color: Color(0xFFF5E8ED),
+                              color: Color(0xFFFCE5F0),
                               shape: BoxShape.circle,
                             ),
                             child: Text('${entry.key + 1}',
                                 style: Theme.of(context)
                                     .textTheme
                                     .labelMedium
-                                    ?.copyWith(color: const Color(0xFF70445E))),
+                                    ?.copyWith(color: const Color(0xFFBE1262))),
                           ),
                           const SizedBox(width: 9),
                           Expanded(
@@ -1023,9 +1149,9 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
   Widget _wellbeingReadingChip(MapEntry<String, String> reading) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFF8FA),
+          color: const Color(0xFFFFF2F8),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFEFE3E8)),
+          border: Border.all(color: const Color(0xFFF5DDE9)),
         ),
         child: Text.rich(TextSpan(children: [
           TextSpan(
@@ -1132,7 +1258,7 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
             const Icon(Icons.health_and_safety_outlined,
-                color: Color(0xFF70445E)),
+                color: Color(0xFFBE1262)),
             const SizedBox(width: 10),
             Expanded(
                 child: Text('Recent symptoms',
@@ -1165,28 +1291,6 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
             }),
         ]),
       ),
-    );
-  }
-
-  Widget _navButton(
-    BuildContext context,
-    IconData icon,
-    String label,
-    Color accentColor,
-    String route,
-  ) {
-    return OutlinedButton.icon(
-      onPressed: route == '/check-in'
-          ? _openCheckIn
-          : () => Navigator.pushNamed(context, route),
-      icon: Icon(icon, color: accentColor),
-      label: Text(label),
-      style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF70445E),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          side: const BorderSide(color: Color(0xFFE7E0E3)),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
     );
   }
 
@@ -1241,7 +1345,7 @@ class BabyGrowthCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(children: [
-              const Icon(Icons.auto_awesome, color: Color(0xFF70445E)),
+              const Icon(Icons.auto_awesome, color: Color(0xFFBE1262)),
               const SizedBox(width: 10),
               Expanded(
                   child: Text('Baby growth',
@@ -1260,11 +1364,17 @@ class BabyGrowthCard extends StatelessWidget {
                 },
               ),
             ]),
+            NotificationListener<GrowthWeekNotification>(
+                onNotification: (event) {
+                  onWeekChanged(event.week);
+                  return true;
+                },
+                child: BabyGrowthViewer(week: selectedWeek)),
             const SizedBox(height: 14),
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFFF1E8ED),
+                color: const Color(0xFFFCE5F0),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Column(
@@ -1273,7 +1383,7 @@ class BabyGrowthCard extends StatelessWidget {
                   Text('YOUR JOURNEY',
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
                             letterSpacing: 1.4,
-                            color: const Color(0xFF70445E),
+                            color: const Color(0xFFBE1262),
                             fontWeight: FontWeight.w700,
                           )),
                   const SizedBox(height: 6),
@@ -1289,7 +1399,7 @@ class BabyGrowthCard extends StatelessWidget {
                       value: progress,
                       minHeight: 7,
                       backgroundColor: Colors.white,
-                      color: const Color(0xFF70445E),
+                      color: const Color(0xFFBE1262),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -1298,7 +1408,7 @@ class BabyGrowthCard extends StatelessWidget {
                   const SizedBox(height: 8),
                   Row(children: [
                     const Icon(Icons.event_available_outlined,
-                        size: 18, color: Color(0xFF70445E)),
+                        size: 18, color: Color(0xFFBE1262)),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -1340,47 +1450,6 @@ class BabyGrowthCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            LayoutBuilder(builder: (context, constraints) {
-              final compact = constraints.maxWidth < 440;
-              return Container(
-                height: compact ? 186 : 178,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFFFFF5F3), Color(0xFFF5ECF2)]),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Row(children: [
-                  SizedBox(
-                    width: compact ? 104 : 150,
-                    height: 160,
-                    child: CustomPaint(painter: const GrowthBabyPainter()),
-                  ),
-                  Expanded(
-                      child: Padding(
-                    padding: const EdgeInsets.fromLTRB(4, 16, 18, 16),
-                    child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                              week == null
-                                  ? 'Educational week $selectedWeek'
-                                  : 'Estimated $weekLabel',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(color: const Color(0xFF70445E))),
-                          const SizedBox(height: 6),
-                          Text(
-                              'A size comparison for selected week $selectedWeek.',
-                              style: Theme.of(context).textTheme.bodyMedium),
-                        ]),
-                  )),
-                ]),
-              );
-            }),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -1421,7 +1490,7 @@ class BabyGrowthCard extends StatelessWidget {
             ]),
             const SizedBox(height: 8),
             Text(
-                'The selected week changes this fruit comparison only. Week-specific illustrations and reviewed growth information are not available yet. Ask your clinician about growth measurements.',
+                'The 3D form is a stylized concept with broad stage changes, not an anatomically accurate weekly model. Size comparisons are approximate. Ask your clinician about growth measurements.',
                 style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
@@ -1770,90 +1839,6 @@ String growthComparison(int week) {
   if (week <= 39) return 'honeydew melon';
   if (week <= 40) return 'watermelon';
   return 'pumpkin';
-}
-
-class GrowthBabyPainter extends CustomPainter {
-  const GrowthBabyPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.save();
-    canvas.translate(size.width / 2, size.height / 2 + 4);
-
-    final shadow = Paint()..color = const Color(0x2270445E);
-    canvas.drawOval(
-        Rect.fromCenter(center: const Offset(1, 55), width: 68, height: 12),
-        shadow);
-
-    final bodyPaint = Paint()
-      ..shader = const RadialGradient(
-        center: Alignment(-0.55, -0.55),
-        colors: [Color(0xFFFFE2D1), Color(0xFFF4BFAE), Color(0xFFD88F88)],
-      ).createShader(Rect.fromLTWH(-44, -20, 94, 94));
-    final body = Path()
-      ..moveTo(-3, -14)
-      ..cubicTo(29, -17, 43, 8, 33, 30)
-      ..cubicTo(27, 45, 8, 50, -8, 40)
-      ..cubicTo(-20, 33, -27, 18, -19, 5)
-      ..cubicTo(-14, -4, -10, -10, -3, -14)
-      ..close();
-    canvas.drawShadow(body, const Color(0x3370445E), 8, false);
-    canvas.drawPath(body, bodyPaint);
-
-    final limbPaint = Paint()
-      ..color = const Color(0xFFF0B8A5)
-      ..strokeWidth = 11
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-    final legs = Path()
-      ..moveTo(14, 31)
-      ..cubicTo(30, 40, 23, 52, 8, 44)
-      ..moveTo(-1, 34)
-      ..cubicTo(-13, 47, -23, 38, -13, 28);
-    canvas.drawPath(legs, limbPaint);
-
-    final headPaint = Paint()
-      ..shader = const RadialGradient(
-        center: Alignment(-0.55, -0.6),
-        colors: [Color(0xFFFFE8D8), Color(0xFFFFCBB4), Color(0xFFE7A28E)],
-      ).createShader(
-          Rect.fromCircle(center: const Offset(-18, -20), radius: 33));
-    canvas.drawCircle(const Offset(-18, -20), 27, headPaint);
-    canvas.drawCircle(
-        const Offset(-26, -29), 7, Paint()..color = const Color(0x55FFFFFF));
-
-    final armPaint = Paint()
-      ..color = const Color(0xFFF8C7B1)
-      ..strokeWidth = 9
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-    final arm = Path()
-      ..moveTo(-4, 3)
-      ..cubicTo(8, 2, 16, 12, 10, 21);
-    canvas.drawPath(arm, armPaint);
-
-    final facePaint = Paint()..color = const Color(0xFF70445E);
-    canvas.drawCircle(const Offset(-27, -20), 1.7, facePaint);
-    canvas.drawCircle(const Offset(-13, -20), 1.7, facePaint);
-    final smile = Path()
-      ..moveTo(-24, -11)
-      ..quadraticBezierTo(-20, -7, -16, -11);
-    canvas.drawPath(
-        smile,
-        Paint()
-          ..color = const Color(0xFFB46D70)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.5
-          ..strokeCap = StrokeCap.round);
-    canvas.drawCircle(
-        const Offset(-31, -13), 3, Paint()..color = const Color(0x66E88E8C));
-    canvas.drawCircle(
-        const Offset(-9, -13), 3, Paint()..color = const Color(0x66E88E8C));
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(covariant GrowthBabyPainter oldDelegate) => false;
 }
 
 String partnerConnectionError(Object error) {
@@ -2207,7 +2192,7 @@ class _PartnerSharingScreenState extends State<PartnerSharingScreen> {
                   style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 6),
               Text(
-                  'Enter the email on their existing MatruCare account. They need to select the Partner role first. This connects the account; it does not send an email invitation.',
+                  'Enter the email on their existing Careloom account. They need to select the Partner role first. This connects the account; it does not send an email invitation.',
                   style: Theme.of(context).textTheme.bodyMedium),
               const SizedBox(height: 14),
               TextField(
@@ -2296,9 +2281,9 @@ class _PartnerSharingScreenState extends State<PartnerSharingScreen> {
                 height: 220,
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFF8FA),
+                  color: const Color(0xFFFFF2F8),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFEFE3E8)),
+                  border: Border.all(color: const Color(0xFFF5DDE9)),
                 ),
                 child: _messages.isEmpty
                     ? Center(
@@ -2332,7 +2317,7 @@ class _PartnerSharingScreenState extends State<PartnerSharingScreen> {
                                   horizontal: 12, vertical: 8),
                               decoration: BoxDecoration(
                                 color: isMine
-                                    ? const Color(0xFFF1E8ED)
+                                    ? const Color(0xFFFCE5F0)
                                     : Colors.white,
                                 borderRadius: BorderRadius.circular(12),
                               ),

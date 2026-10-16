@@ -15,7 +15,13 @@ This repository contains a Flutter mobile app in `maternal-health-app/apps/mobil
 
 `flutter run` resolves dependencies automatically. Email/password registration may require email confirmation, depending on Supabase Auth settings. Google sign-in also requires OAuth credentials and the `com.matrucare.app://login-callback` redirect URL in Supabase.
 
-The current connected flows are account sign-in/sign-up, role selection, pregnancy dating from the last menstrual period, daily check-ins, and symptom logs. Supabase row-level security restricts those records to the signed-in user. Partner sharing, clinician assignments, appointments, expenses, baby-care logs, and push notifications are not implemented yet; those screens should not be treated as live clinical workflows.
+The mother experience uses three tabs: **Today**, **Baby**, and **Care**. Today contains check-ins, wellbeing, recent symptoms, and the next appointment. Baby contains an interactive procedural 3D illustration with rotation, zoom, optional gentle motion, a still view, and a week selector. Care groups appointments and partner sharing/messages. The partner experience uses **Today**, **Baby**, and **Together**, and only displays categories the mother has shared.
+
+Connected flows include account sign-in/sign-up, role selection, pregnancy dating, daily check-ins with optional manually entered readings, symptom logs, mother-controlled partner connections, selective sharing, and private messages. Run `maternal-health-app/supabase/dashboard_appointments.sql` after the main schema to enable appointment creation, editing, and cancellation. Existing Supabase projects must apply the current main schema to enable partner functions and permissions. No database changes are applied automatically by the app.
+
+The baby viewer generates shaded 3D geometry locally, without remote assets or a new rendering dependency. Its early-development and curled-baby forms are stylized concepts with broad stage changes, not reviewed weekly anatomical models or scans. Motion starts paused and respects reduced-motion preferences. Professionally reviewed developmental meshes are still needed for anatomical fidelity. Clinician assignments, expenses, baby-care logs, and push notifications remain unfinished.
+
+Run `flutter analyze --no-fatal-infos` and `flutter test` from the mobile directory for static checks and UI regression tests. The repository has pre-existing informational lint findings.
 
 ## Project layout
 
