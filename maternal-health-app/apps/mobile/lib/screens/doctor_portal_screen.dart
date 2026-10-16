@@ -57,6 +57,7 @@ class _DoctorPortalScreenState extends State<DoctorPortalScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
+            tooltip: 'Search assigned patients',
             onPressed: _searchPatient,
           ),
         ],
@@ -97,7 +98,7 @@ class _DoctorPortalScreenState extends State<DoctorPortalScreen> {
                               color: Colors.white,
                               child: ListTile(
                                 leading: CircleAvatar(
-                                  backgroundColor: Color(0xFF880E4F),
+                                  backgroundColor: const Color(0xFF70445E),
                                   child: Text(
                                     patient['name'][0],
                                     style: const TextStyle(color: Colors.white),

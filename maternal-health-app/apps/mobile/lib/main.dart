@@ -49,6 +49,8 @@ class MaternalHealthApp extends StatelessWidget {
           titleMedium: TextStyle(color: _ink, fontSize: 15, fontWeight: FontWeight.w600),
           bodyLarge: TextStyle(color: _ink, fontSize: 15, height: 1.5),
           bodyMedium: TextStyle(color: _muted, fontSize: 14, height: 1.45),
+          bodySmall: TextStyle(color: _muted, fontSize: 12, height: 1.4),
+          labelSmall: TextStyle(color: _muted, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.3),
           labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
         cardTheme: CardThemeData(
@@ -82,6 +84,15 @@ class MaternalHealthApp extends StatelessWidget {
         ),
         textButtonTheme: TextButtonThemeData(
           style: TextButton.styleFrom(foregroundColor: _plum, textStyle: const TextStyle(fontWeight: FontWeight.w600)),
+        ),
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: _plum,
+            minimumSize: const Size(0, 48),
+            side: const BorderSide(color: Color(0xFFE7E0E3)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+            textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          ),
         ),
         snackBarTheme: SnackBarThemeData(
           behavior: SnackBarBehavior.floating,

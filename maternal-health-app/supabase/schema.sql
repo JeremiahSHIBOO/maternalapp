@@ -29,9 +29,83 @@ create table if not exists public.daily_check_ins (
   energy integer check (energy between 1 and 10),
   stress integer check (stress between 1 and 10),
   hydration_status text check (hydration_status in ('poor', 'fair', 'good', 'excellent')),
+  bp_systolic_mmhg integer,
+  bp_diastolic_mmhg integer,
+  heart_rate_bpm integer,
+  hrv_ms numeric(6,1),
+  spo2_percent numeric(4,1),
+  respiratory_rate_per_min integer,
+  skin_temperature_c numeric(4,1),
+  weight_kg numeric(5,1),
+  steps_count integer,
+  measurement_source text not null default 'manual',
   notes text,
   created_at timestamptz not null default now()
 );
+
+-- Add nullable manual-measurement columns to existing installations without
+-- removing or rewriting prior check-in records.
+alter table public.daily_check_ins
+  add column if not exists bp_systolic_mmhg integer,
+  add column if not exists bp_diastolic_mmhg integer,
+  add column if not exists heart_rate_bpm integer,
+  add column if not exists hrv_ms numeric(6,1),
+  add column if not exists spo2_percent numeric(4,1),
+  add column if not exists respiratory_rate_per_min integer,
+  add column if not exists skin_temperature_c numeric(4,1),
+  add column if not exists weight_kg numeric(5,1),
+  add column if not exists steps_count integer,
+  add column if not exists measurement_source text not null default 'manual';
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'daily_check_ins_bp_systolic_range' and conrelid = 'public.daily_check_ins'::regclass) then
+    alter table public.daily_check_ins add constraint daily_check_ins_bp_systolic_range
+      check (bp_systolic_mmhg between 1 and 300);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'daily_check_ins_bp_diastolic_range' and conrelid = 'public.daily_check_ins'::regclass) then
+    alter table public.daily_check_ins add constraint daily_check_ins_bp_diastolic_range
+      check (bp_diastolic_mmhg between 1 and 200);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'daily_check_ins_bp_pair' and conrelid = 'public.daily_check_ins'::regclass) then
+    alter table public.daily_check_ins add constraint daily_check_ins_bp_pair
+      check ((bp_systolic_mmhg is null and bp_diastolic_mmhg is null) or
+        (bp_systolic_mmhg is not null and bp_diastolic_mmhg is not null and
+         bp_systolic_mmhg > bp_diastolic_mmhg));
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'daily_check_ins_heart_rate_range' and conrelid = 'public.daily_check_ins'::regclass) then
+    alter table public.daily_check_ins add constraint daily_check_ins_heart_rate_range
+      check (heart_rate_bpm between 20 and 240);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'daily_check_ins_hrv_range' and conrelid = 'public.daily_check_ins'::regclass) then
+    alter table public.daily_check_ins add constraint daily_check_ins_hrv_range
+      check (hrv_ms between 0 and 500);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'daily_check_ins_spo2_range' and conrelid = 'public.daily_check_ins'::regclass) then
+    alter table public.daily_check_ins add constraint daily_check_ins_spo2_range
+      check (spo2_percent between 50 and 100);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'daily_check_ins_respiratory_rate_range' and conrelid = 'public.daily_check_ins'::regclass) then
+    alter table public.daily_check_ins add constraint daily_check_ins_respiratory_rate_range
+      check (respiratory_rate_per_min between 4 and 80);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'daily_check_ins_skin_temperature_range' and conrelid = 'public.daily_check_ins'::regclass) then
+    alter table public.daily_check_ins add constraint daily_check_ins_skin_temperature_range
+      check (skin_temperature_c between 20 and 45);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'daily_check_ins_weight_range' and conrelid = 'public.daily_check_ins'::regclass) then
+    alter table public.daily_check_ins add constraint daily_check_ins_weight_range
+      check (weight_kg between 20 and 300);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'daily_check_ins_steps_range' and conrelid = 'public.daily_check_ins'::regclass) then
+    alter table public.daily_check_ins add constraint daily_check_ins_steps_range
+      check (steps_count between 0 and 200000);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'daily_check_ins_measurement_source' and conrelid = 'public.daily_check_ins'::regclass) then
+    alter table public.daily_check_ins add constraint daily_check_ins_measurement_source
+      check (measurement_source in ('manual', 'wearable', 'blood_pressure_cuff', 'home_device', 'clinic', 'multiple', 'other'));
+  end if;
+end $$;
 
 create table if not exists public.symptom_logs (
   id uuid primary key default gen_random_uuid(),

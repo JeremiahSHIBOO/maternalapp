@@ -22,7 +22,10 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
-        child: Column(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760),
+            child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Summary cards
@@ -30,7 +33,7 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
               children: [
                 _buildSummaryCard(
                   Icons.task,
-                  'Pending Tasks',
+                  'Shared tasks',
                   'No shared data',
                   Color(0xFFF4F0F2),
                   Color(0xFF70445E),
@@ -38,7 +41,7 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
                 const SizedBox(width: 16),
                 _buildSummaryCard(
                   Icons.money,
-                  'Monthly Expenses',
+                  'Shared expenses',
                   'No shared data',
                   Color(0xFFF4F0F2),
                   Color(0xFF789080),
@@ -96,6 +99,8 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
             // Baby care log
             _buildBabyCareSection(),
           ],
+            ),
+          ),
         ),
       ),
     );
@@ -116,13 +121,13 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
                   const SizedBox(height: 8),
                   Text(
                     title,
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF880E4F)),
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(color: const Color(0xFF70445E)),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: Theme.of(context).textTheme.titleMedium,
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -142,12 +147,12 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
   ) {
     return OutlinedButton.icon(
       onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$label will appear after a mother shares access with your account.')),
+        SnackBar(content: Text('$label is not available yet. Shared access is not connected.')),
       ),
       icon: Icon(icon, color: accentColor),
       label: Text(label),
       style: OutlinedButton.styleFrom(
-        foregroundColor: accentColor,
+        foregroundColor: const Color(0xFF70445E),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         side: const BorderSide(color: Color(0xFFE7E0E3)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
