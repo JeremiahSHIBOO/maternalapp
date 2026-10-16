@@ -86,6 +86,7 @@ class EnergyPredictor:
         self.model = None
         self.model_available = False
         self.calibrated = False
+        self.load()
 
     def load(self) -> bool:
         if os.path.exists(MODEL_PATH):
@@ -180,6 +181,123 @@ class EnergyPredictor:
         report = classification_report(
             y_test, self.model.predict(Xte), output_dict=True, zero_division=0
         )
+        return {
+            "trained": True,
+            "model": best_name,
+            "calibrated": self.calibrated,
+            "test_accuracy": round(best_score, 3),
+            "baseline_accuracy": round(baseline_acc, 3),
+            "per_model": results,
+            "report": report,
+            "confusion_matrix": confusion_matrix(
+                y_test, self.model.predict(Xte), labels=ENERGY_CATEGORIES
+            ).tolist(),
+            "info": info,
+        }
+
+    def train_from_pairs(
+        self, rows: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """Train on pre-built supervised pairs (features + labels already set).
+
+        Useful when labels come from a deterministic labeling function rather
+        than the next record's actual energy value.
+        """
+        if len(rows) < MIN_TRAINING_RECORDS:
+            info: Dict[str, Any] = {
+                "total_pairs": len(rows),
+                "class_distribution": (
+                    dict(Counter(r["next_energy_category"] for r in rows))
+                    if rows
+                    else {}
+                ),
+            }
+            return {
+                "trained": False,
+                "reason": (
+                    f"Insufficient data: {len(rows)} pairs, need "
+                    f"{MIN_TRAINING_RECORDS}. Rules-based fallback will be used."
+                ),
+                "info": info,
+            }
+
+        # Chronological split: first 80% train, last 20% test.
+        split = int(len(rows) * 0.8)
+        train_rows = rows[:split]
+        test_rows = rows[split:]
+        if not test_rows:
+            test_rows = train_rows
+
+        X_train, y_train = self._xy(train_rows)
+        X_test, y_test = self._xy(test_rows)
+
+        from sklearn.linear_model import LogisticRegression
+        from sklearn.ensemble import RandomForestClassifier
+        from sklearn.calibration import CalibratedClassifierCV
+        from sklearn.metrics import classification_report, confusion_matrix
+        from sklearn.preprocessing import StandardScaler
+        from sklearn.impute import SimpleImputer
+        from sklearn.pipeline import Pipeline
+
+        # Baseline: majority class.
+        majority = Counter(y_train).most_common(1)[0][0]
+        baseline_acc = (
+            sum(1 for y in y_test if y == majority) / len(y_test) if y_test else 0.0
+        )
+
+        imputer = SimpleImputer(strategy="median")
+        Xtr = imputer.fit_transform(X_train)
+        Xte = imputer.transform(X_test)
+
+        models = {
+            "logistic_regression": LogisticRegression(
+                max_iter=1000, class_weight="balanced"
+            ),
+            "random_forest": RandomForestClassifier(
+                n_estimators=100, class_weight="balanced", random_state=42
+            ),
+        }
+        best = None
+        best_name = None
+        best_score = -1.0
+        results: Dict[str, Any] = {}
+        for name, clf in models.items():
+            pipe = Pipeline([("scale", StandardScaler()), ("clf", clf)])
+            pipe.fit(Xtr, y_train)
+            acc = pipe.score(Xte, y_test)
+            results[name] = {"accuracy": round(acc, 3)}
+            if acc > best_score:
+                best_score = acc
+                best = pipe
+                best_name = name
+
+        # Calibrate only when feasible.
+        try:
+            cal = CalibratedClassifierCV(best, method="isotonic", cv=3)
+            cal.fit(Xtr, y_train)
+            self.model = cal
+            self.calibrated = True
+        except Exception:
+            self.model = best
+            self.calibrated = False
+
+        self.model_available = True
+        try:
+            joblib.dump(self.model, MODEL_PATH)
+        except Exception:
+            pass
+
+        report = classification_report(
+            y_test, self.model.predict(Xte), output_dict=True, zero_division=0
+        )
+        info: Dict[str, Any] = {
+            "total_pairs": len(rows),
+            "class_distribution": (
+                dict(Counter(r["next_energy_category"] for r in rows))
+                if rows
+                else {}
+            ),
+        }
         return {
             "trained": True,
             "model": best_name,
