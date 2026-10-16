@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../app_config.dart';
 import 'login_screen.dart';
-import 'role_selection_screen.dart';
+import '../services/profile_service.dart';
 
 class StartScreen extends StatelessWidget {
   const StartScreen({super.key});
@@ -32,8 +32,7 @@ class StartScreen extends StatelessWidget {
     final user = Supabase.instance.client.auth.currentSession?.user;
 
     if (user != null) {
-      // User is already authenticated, go to role selection
-      return const RoleSelectionScreen();
+      return const _SessionHome();
     }
 
     // Show the welcome screen to unauthenticated users.
@@ -46,6 +45,49 @@ class StartScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+class _SessionHome extends StatefulWidget {
+  const _SessionHome();
+  @override
+  State<_SessionHome> createState() => _SessionHomeState();
+}
+
+class _SessionHomeState extends State<_SessionHome> {
+  String? _error;
+  @override
+  void initState() {
+    super.initState();
+    _openHome();
+  }
+
+  Future<void> _openHome() async {
+    setState(() => _error = null);
+    try {
+      final route = await ProfileService.homeRoute();
+      if (mounted)
+        Navigator.pushNamedAndRemoveUntil(context, route, (_) => false);
+    } catch (_) {
+      if (mounted)
+        setState(
+            () => _error = 'We couldn’t load your account. Please try again.');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+          body: Center(
+        child: _error == null
+            ? const CircularProgressIndicator()
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(_error!),
+                  TextButton(
+                      onPressed: _openHome, child: const Text('Try again'))
+                ],
+              ),
+      ));
 }
 
 class _WelcomeShell extends StatelessWidget {

@@ -1,8 +1,21 @@
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'daily_checkin_screen.dart';
+
+Future<void> signOutOfCareApp(BuildContext context) async {
+  try {
+    await Supabase.instance.client.auth.signOut();
+    if (context.mounted)
+      Navigator.pushNamedAndRemoveUntil(context, '/', (_) => false);
+  } catch (_) {
+    if (context.mounted)
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Could not sign out. Please try again.')));
+  }
+}
 
 class MotherHomeScreen extends StatefulWidget {
   const MotherHomeScreen({super.key});
@@ -16,7 +29,6 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
   String _currentWeek = '—';
   String? _pregnancyProfileId;
   int? _pregnancyWeekNumber;
-  int _pregnancyDay = 0;
   int _selectedGrowthWeek = 1;
   String _pregnancyType = 'single';
   String _profileNotes = '';
@@ -193,7 +205,6 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
         _recentSymptoms = symptoms;
         _nextAppointment = appointment;
         _pregnancyWeekNumber = completedWeeks;
-        _pregnancyDay = dayInWeek;
         _currentWeek = completedWeeks == null
             ? '—'
             : 'Week $completedWeeks · Day $dayInWeek';
@@ -580,10 +591,19 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
         title: const Text('MatruCare'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.people_outline),
+            tooltip: 'Partner & sharing',
+            onPressed: () => Navigator.pushNamed(context, '/partner-sharing'),
+          ),
+          IconButton(
             icon: const Icon(Icons.settings),
             tooltip: 'Set pregnancy date',
             onPressed: _editPregnancyDate,
           ),
+          IconButton(
+              icon: const Icon(Icons.logout),
+              tooltip: 'Sign out',
+              onPressed: () => signOutOfCareApp(context)),
         ],
       ),
       body: SingleChildScrollView(
@@ -638,6 +658,13 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
                       'Doctor',
                       Color(0xFF789080),
                       '/doctor-portal',
+                    ),
+                    _navButton(
+                      context,
+                      Icons.people_outline,
+                      'Partner & sharing',
+                      Color(0xFF70445E),
+                      '/partner-sharing',
                     ),
                   ],
                 ),
@@ -750,12 +777,15 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
         : DateTime.tryParse(checkIn['check_in_date'] as String? ?? '')
             ?.toLocal();
     final readings = _wellbeingReadings(checkIn);
-    final reflection = _checkInLoadError == null || checkIn != null
-        ? _wellbeingReflection(checkIn)
-        : null;
+    final reflection = _checkedInToday
+        ? wellbeingReflection(checkIn, recentCheckIns: _recentCheckIns)
+        : checkIn == null && _checkInLoadError == null
+            ? wellbeingReflection(null)
+            : null;
     final measurementSource = checkIn?['measurement_source']?.toString();
     final note = checkIn?['notes']?.toString().trim();
     return Card(
+      semanticContainer: false,
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -784,6 +814,9 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
           const SizedBox(height: 14),
           Text('What you shared',
               style: Theme.of(context).textTheme.titleMedium),
+          if (!_measurementColumnsAvailable)
+            const Text(
+                'Your wellbeing answers are loaded. The database needs its manual-measurement update before those readings can be saved or shown.'),
           const SizedBox(height: 8),
           if (_checkInLoadError != null && checkIn == null)
             Row(children: [
@@ -844,6 +877,9 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
                 style: Theme.of(context).textTheme.bodyMedium),
           ],
           const SizedBox(height: 16),
+          if (!_checkedInToday && checkIn != null)
+            const Text(
+                'These readings are from an earlier day. Complete today’s check-in to shape today’s care plan.'),
           if (reflection != null) ...[
             Text('A gentle read of today',
                 style: Theme.of(context).textTheme.titleMedium),
@@ -879,37 +915,42 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
             const SizedBox(height: 16),
             Text('A caring plan for today',
                 style: Theme.of(context).textTheme.titleMedium),
+            if (reflection['modelNote'] != null) ...[
+              const SizedBox(height: 6),
+              Text(reflection['modelNote'] as String,
+                  style: Theme.of(context).textTheme.bodySmall),
+            ],
             const SizedBox(height: 8),
             ...((reflection['steps'] as List<String>)
                 .asMap()
                 .entries
                 .map((entry) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: 24,
-                          height: 24,
-                          alignment: Alignment.center,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFF5E8ED),
-                            shape: BoxShape.circle,
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 24,
+                            height: 24,
+                            alignment: Alignment.center,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFF5E8ED),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text('${entry.key + 1}',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelMedium
+                                    ?.copyWith(color: const Color(0xFF70445E))),
                           ),
-                          child: Text('${entry.key + 1}',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelMedium
-                                  ?.copyWith(color: const Color(0xFF70445E))),
-                        ),
-                        const SizedBox(width: 9),
-                        Expanded(
-                          child: Text(entry.value,
-                              style: Theme.of(context).textTheme.bodyMedium),
-                        ),
-                      ],
-                    ),
-                  ))),
+                          const SizedBox(width: 9),
+                          Expanded(
+                            child: Text(entry.value,
+                                style: Theme.of(context).textTheme.bodyMedium),
+                          ),
+                        ],
+                      ),
+                    ))),
             Text(
               'This is supportive reflection on what you chose to log, not a diagnosis or a check of your or your baby’s health. Follow your care team’s advice. If something feels worrying or gets worse, contact them; urgent or unusual symptoms need prompt medical care.',
               style: Theme.of(context).textTheme.bodySmall,
@@ -929,15 +970,16 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
       if (value != null) readings.add(MapEntry(label, describe(value)));
     }
 
-    String threeLevel(num value, String low, String middle, String high) =>
-        value <= 3 ? low : value <= 6 ? middle : high;
-    addScore('mood', 'Mood', (value) => threeLevel(value, 'Low', 'Okay', 'Good'));
-    addScore('energy', 'Energy', (value) => threeLevel(value, 'Low', 'Some', 'Plenty'));
-    addScore('stress', 'Stress', (value) => threeLevel(value, 'Low', 'Some', 'High'));
+    addScore('mood', 'Mood', (value) => wellbeingScoreLabel('mood', value));
+    addScore(
+        'energy', 'Energy', (value) => wellbeingScoreLabel('energy', value));
+    addScore(
+        'stress', 'Stress', (value) => wellbeingScoreLabel('stress', value));
     addScore('sleep_quality', 'Sleep quality',
-        (value) => threeLevel(value, 'Poor', 'Okay', 'Good'));
+        (value) => wellbeingScoreLabel('sleep_quality', value));
 
-    final sleep = num.tryParse(checkIn['sleep_duration_hours']?.toString() ?? '');
+    final sleep =
+        num.tryParse(checkIn['sleep_duration_hours']?.toString() ?? '');
     if (sleep != null) {
       readings.add(MapEntry('Sleep', '${_formatCheckInNumber(sleep)} hours'));
     }
@@ -971,8 +1013,8 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
     for (final measurement in measurementFields) {
       final value = checkIn[measurement['field']];
       if (value != null) {
-        readings.add(MapEntry(
-            measurement['label']!, '$value ${measurement['unit']}'));
+        readings.add(
+            MapEntry(measurement['label']!, '$value ${measurement['unit']}'));
       }
     }
     return readings;
@@ -1031,133 +1073,6 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
   String _formatCheckInNumber(num value) =>
       value == value.roundToDouble() ? value.toInt().toString() : '$value';
 
-  Map<String, dynamic> _wellbeingReflection(
-      Map<String, dynamic>? checkIn) {
-    if (checkIn == null) {
-      return {
-        'summary':
-            'There’s no check-in to reflect on yet, and that’s okay. When you’re ready, we’ll shape today around what you tell us.',
-        'pattern': null,
-        'steps': <String>[
-          'Start with a quick check-in whenever it suits you; share only what you feel comfortable sharing.',
-          'Afterwards, come back here for a few gentle ideas based on your answers.',
-        ],
-      };
-    }
-
-    final energy = num.tryParse(checkIn['energy']?.toString() ?? '');
-    final stress = num.tryParse(checkIn['stress']?.toString() ?? '');
-    final mood = num.tryParse(checkIn['mood']?.toString() ?? '');
-    final sleepQuality = num.tryParse(checkIn['sleep_quality']?.toString() ?? '');
-    final sleepDuration =
-        num.tryParse(checkIn['sleep_duration_hours']?.toString() ?? '');
-    final hydration = checkIn['hydration_status']?.toString().toLowerCase();
-    final lowMood = mood != null && mood <= 3;
-    final highStress = stress != null && stress >= 7;
-    final lowEnergy = energy != null && energy <= 3;
-    final poorSleep = (sleepQuality != null && sleepQuality <= 3) ||
-        (sleepDuration != null && sleepDuration < 6);
-    final positiveDay =
-        ((mood != null && mood >= 7) || (energy != null && energy >= 7)) &&
-        (mood == null || mood >= 4) &&
-        (energy == null || energy >= 4) &&
-        (stress == null || stress <= 3);
-
-    final recent = _recentCheckIns.take(6).toList();
-    String? pattern;
-    String? recurringSignal;
-    if (recent.length >= 3) {
-      final patterns = <MapEntry<String, int>>[
-        MapEntry('low mood', recent.where((row) {
-          final value = num.tryParse(row['mood']?.toString() ?? '');
-          return value != null && value <= 3;
-        }).length),
-        MapEntry('low energy', recent.where((row) {
-          final value = num.tryParse(row['energy']?.toString() ?? '');
-          return value != null && value <= 3;
-        }).length),
-        MapEntry('high stress', recent.where((row) {
-          final value = num.tryParse(row['stress']?.toString() ?? '');
-          return value != null && value >= 7;
-        }).length),
-        MapEntry('poor sleep quality', recent.where((row) {
-          final value = num.tryParse(row['sleep_quality']?.toString() ?? '');
-          return value != null && value <= 3;
-        }).length),
-        MapEntry('short sleep', recent.where((row) {
-          final value = num.tryParse(
-              row['sleep_duration_hours']?.toString() ?? '');
-          return value != null && value < 6;
-        }).length),
-        MapEntry('low hydration', recent.where((row) {
-          final value = row['hydration_status']?.toString().toLowerCase();
-          return value == 'poor' || value == 'fair';
-        }).length),
-      ];
-      patterns.sort((a, b) => b.value.compareTo(a.value));
-      final leading = patterns.first;
-      if (leading.value >= 2) {
-        recurringSignal = leading.key;
-        pattern = 'In your last ${recent.length} check-ins, you noted ${leading.key} ${leading.value} times. That’s a pattern in what you’ve logged—not a health judgment. If it keeps coming up, consider sharing it with someone you trust or your care team.';
-      }
-    }
-
-    final summary = lowMood
-        ? 'Thank you for being honest about your mood. This sounds like a day to make things a little less lonely and ask for the care you deserve.'
-        : highStress
-            ? 'You’ve shared that stress feels high today. Let’s make the next part of the day smaller and bring someone supportive alongside you.'
-            : (lowEnergy || poorSleep)
-                ? 'You’ve logged low energy or a difficult night. It’s okay to give yourself a softer pace and ask for a hand.'
-                : positiveDay
-                    ? 'There’s some steadiness in what you shared today. You deserve to enjoy the good moments without needing to fill every minute.'
-                    : 'Thank you for checking in. Let’s use what you shared to make the next part of today feel a little more supported.';
-
-    final steps = <String>[];
-    if (lowMood) {
-      steps.add('Send a simple message to someone you trust: “Today feels heavy. Could you check in with me or keep me company?”');
-      steps.add('Pick one small comfort for the next hour—something gentle that feels manageable to you.');
-    }
-    if (highStress) {
-      steps.add('Pause and choose just one next task; let a non-urgent task wait if you can. Ask someone close to help with one thing.');
-    }
-    if (lowEnergy || poorSleep) {
-      steps.add('Make space for a comfortable rest break and ask your support person to take one task off your hands.');
-    }
-    if (hydration == 'poor' || hydration == 'fair') {
-      steps.add('If it feels right for you and your care team has not advised otherwise, keep a drink nearby and sip when you can.');
-    }
-    if (positiveDay) {
-      steps.add('Choose one thing you’d enjoy today and share that good moment with someone close; keep room for breaks, too.');
-    }
-    // Today's needs come first; use older entries as context after them.
-    if (recurringSignal == 'low mood' && !lowMood) {
-      steps.add('Low mood has appeared in several recent check-ins, though you marked it as okay today. If it returns or concerns you, consider asking someone you trust for support.');
-    } else if (recurringSignal == 'low energy' && !lowEnergy) {
-      steps.add('Low energy has come up in several recent check-ins. If it continues, consider mentioning it to your care team.');
-    } else if (recurringSignal == 'high stress' && !highStress) {
-      steps.add('Stress has felt high in several recent check-ins. If it continues, consider simplifying the day and letting your support person know.');
-    } else if ((recurringSignal == 'poor sleep quality' ||
-            recurringSignal == 'short sleep') &&
-        !poorSleep) {
-      steps.add('Difficult or short sleep has come up in several check-ins. If it continues or concerns you, consider mentioning it to your care team.');
-    } else if (recurringSignal == 'low hydration' &&
-        hydration != 'poor' &&
-        hydration != 'fair') {
-      steps.add('You’ve marked hydration as poor or fair in several check-ins. If appropriate for you, keep a drink within reach and follow your care team’s advice.');
-    }
-    if (steps.isEmpty) {
-      steps.add('Choose one small thing that would make the next hour feel easier or more enjoyable.');
-      steps.add('If you would like company or help, tell someone close what would be useful.');
-    }
-    steps.add('If how you feel worries you, continues, or gets worse, contact your care team for personal guidance.');
-
-    return {
-      'summary': summary,
-      'pattern': pattern,
-      'steps': steps.take(4).toList(),
-    };
-  }
-
   Future<void> _openCheckIn() async {
     if (_isOpeningCheckIn) return;
     _isOpeningCheckIn = true;
@@ -1194,7 +1109,8 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
       if (savedCheckIn != null && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-                content: Text('Check-in saved. Your wellbeing has been updated.')),
+              content:
+                  Text('Check-in saved. Your wellbeing has been updated.')),
         );
       }
     } catch (_) {
@@ -1274,10 +1190,51 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
     );
   }
 
-  Widget _buildBabyGrowthSection() {
-    final week = _pregnancyWeekNumber;
-    final comparison = _growthComparison(_selectedGrowthWeek);
+  Widget _buildBabyGrowthSection() => BabyGrowthCard(
+        week: _pregnancyWeekNumber,
+        weekLabel: _currentWeek,
+        stage: _activeStage,
+        progress: _progress,
+        selectedWeek: _selectedGrowthWeek,
+        onWeekChanged: (value) => setState(() => _selectedGrowthWeek = value),
+        dueDate: _dueDate,
+        datesInvalid: _profileDatesInvalid,
+        conflictDays: _dateConflictDays,
+        profileNote: _profileNotes,
+        onEditDates: _editPregnancyDate,
+      );
+}
+
+class BabyGrowthCard extends StatelessWidget {
+  const BabyGrowthCard(
+      {super.key,
+      required this.week,
+      required this.weekLabel,
+      required this.stage,
+      required this.progress,
+      required this.selectedWeek,
+      required this.onWeekChanged,
+      this.dueDate,
+      this.datesInvalid = false,
+      this.conflictDays,
+      this.profileNote = '',
+      this.onEditDates});
+  final int? week;
+  final String weekLabel;
+  final String stage;
+  final double progress;
+  final int selectedWeek;
+  final ValueChanged<int> onWeekChanged;
+  final DateTime? dueDate;
+  final bool datesInvalid;
+  final int? conflictDays;
+  final String profileNote;
+  final VoidCallback? onEditDates;
+  @override
+  Widget build(BuildContext context) {
+    final comparison = growthComparison(selectedWeek);
     return Card(
+      semanticContainer: false,
       child: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(
@@ -1290,7 +1247,7 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
                   child: Text('Baby growth',
                       style: Theme.of(context).textTheme.titleLarge)),
               DropdownButton<int>(
-                value: _selectedGrowthWeek,
+                value: selectedWeek,
                 underline: const SizedBox.shrink(),
                 items: List.generate(
                     42,
@@ -1299,8 +1256,7 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
                           child: Text('Week ${index + 1}'),
                         )),
                 onChanged: (value) {
-                  if (value != null)
-                    setState(() => _selectedGrowthWeek = value);
+                  if (value != null) onWeekChanged(value);
                 },
               ),
             ]),
@@ -1321,7 +1277,7 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
                             fontWeight: FontWeight.w700,
                           )),
                   const SizedBox(height: 6),
-                  Text(_activeStage,
+                  Text(stage,
                       style: Theme.of(context)
                           .textTheme
                           .titleLarge
@@ -1330,14 +1286,14 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: LinearProgressIndicator(
-                      value: _progress,
+                      value: progress,
                       minHeight: 7,
                       backgroundColor: Colors.white,
                       color: const Color(0xFF70445E),
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text('${(_progress * 100).round()}% of the 40-week journey',
+                  Text('${(progress * 100).round()}% of the 40-week journey',
                       style: Theme.of(context).textTheme.bodySmall),
                   const SizedBox(height: 8),
                   Row(children: [
@@ -1346,18 +1302,19 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        _dueDate == null
+                        dueDate == null
                             ? 'Estimated due date not set'
-                            : 'Due date · ${DateFormat('d MMM yyyy').format(_dueDate!)}',
+                            : 'Due date · ${DateFormat('d MMM yyyy').format(dueDate!)}',
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                     ),
-                    TextButton(
-                      onPressed: _editPregnancyDate,
-                      child: Text(_lmpDate == null ? 'Set dates' : 'Edit'),
-                    ),
+                    if (onEditDates != null)
+                      TextButton(
+                        onPressed: onEditDates,
+                        child: Text(week == null ? 'Set dates' : 'Edit'),
+                      ),
                   ]),
-                  if (_profileDatesInvalid)
+                  if (datesInvalid)
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
                       child: Text(
@@ -1365,18 +1322,18 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ),
-                  if (_dateConflictDays != null)
+                  if (conflictDays != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
                       child: Text(
-                        'The saved dates differ from the 280-day estimate by ${_dateConflictDays!.abs()} days. Confirm your dates with your clinician.',
+                        'The saved dates differ from the 280-day estimate by ${conflictDays!.abs()} days. Confirm your dates with your clinician.',
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ),
-                  if (_profileNotes.isNotEmpty)
+                  if (profileNote.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
-                      child: Text('Profile note · $_profileNotes',
+                      child: Text('Profile note · $profileNote',
                           style: Theme.of(context).textTheme.bodySmall),
                     ),
                 ],
@@ -1398,7 +1355,7 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
                   SizedBox(
                     width: compact ? 104 : 150,
                     height: 160,
-                    child: CustomPaint(painter: const _GrowthBabyPainter()),
+                    child: CustomPaint(painter: const GrowthBabyPainter()),
                   ),
                   Expanded(
                       child: Padding(
@@ -1409,15 +1366,15 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
                         children: [
                           Text(
                               week == null
-                                  ? 'Educational week $_selectedGrowthWeek'
-                                  : 'Estimated $_currentWeek',
+                                  ? 'Educational week $selectedWeek'
+                                  : 'Estimated $weekLabel',
                               style: Theme.of(context)
                                   .textTheme
                                   .titleMedium
                                   ?.copyWith(color: const Color(0xFF70445E))),
                           const SizedBox(height: 6),
                           Text(
-                              'A size comparison for selected week $_selectedGrowthWeek.',
+                              'A size comparison for selected week $selectedWeek.',
                               style: Theme.of(context).textTheme.bodyMedium),
                         ]),
                   )),
@@ -1471,36 +1428,352 @@ class _MotherHomeScreenState extends State<MotherHomeScreen> {
       ),
     );
   }
+}
 
-  String _growthComparison(int week) {
-    if (week <= 5) return 'poppy seed';
-    if (week <= 7) return 'blueberry';
-    if (week <= 9) return 'raspberry';
-    if (week <= 11) return 'strawberry';
-    if (week <= 12) return 'plum';
-    if (week <= 13) return 'peach';
-    if (week <= 15) return 'lemon';
-    if (week <= 17) return 'avocado';
-    if (week <= 19) return 'bell pepper';
-    if (week <= 21) return 'banana';
-    if (week <= 23) return 'papaya';
-    if (week <= 25) return 'courgette';
-    if (week <= 26) return 'cucumber';
-    if (week <= 27) return 'zucchini';
-    if (week <= 28) return 'aubergine';
-    if (week <= 29) return 'butternut squash';
-    if (week <= 31) return 'cabbage';
-    if (week <= 33) return 'pineapple';
-    if (week <= 35) return 'cantaloupe';
-    if (week <= 37) return 'romaine lettuce';
-    if (week <= 39) return 'honeydew melon';
-    if (week <= 40) return 'watermelon';
-    return 'pumpkin';
+String wellbeingScoreLabel(String field, dynamic rawValue) {
+  final value = num.tryParse(rawValue?.toString() ?? '');
+  if (value == null || value < 1 || value > 10) return 'Not recorded';
+  const labels = <String, List<String>>{
+    'mood': ['Low', 'Okay', 'Good'],
+    'energy': ['Low', 'Some', 'Plenty'],
+    'stress': ['Low', 'Some', 'High'],
+    'sleep_quality': ['Poor', 'Okay', 'Good'],
+  };
+  final options = labels[field];
+  if (options == null) return 'Not recorded';
+  return options[value <= 3
+      ? 0
+      : value <= 6
+          ? 1
+          : 2];
+}
+
+// Experimental memory-based classifier for ordering nonclinical support ideas.
+// Synthetic labels describe support preferences, never health outcomes. Fixed
+// domain scales require no fitted transforms; holdout rows are not used in KNN.
+class WellbeingSupportModel {
+  static List<double>? features(Map<String, dynamic> row) {
+    const keys = [
+      'mood',
+      'energy',
+      'stress',
+      'sleep_quality',
+      'sleep_duration_hours'
+    ];
+    final values =
+        keys.map((key) => double.tryParse(row[key]?.toString() ?? '')).toList();
+    if (values.any((v) => v == null || !v.isFinite)) return null;
+    if (values.take(4).any((v) => v! < 1 || v > 10) ||
+        values[4]! < 0 ||
+        values[4]! > 24) return null;
+    const hydration = {
+      'poor': 0.0,
+      'fair': 1 / 3,
+      'good': 2 / 3,
+      'excellent': 1.0
+    };
+    final water = hydration[row['hydration_status']?.toString().toLowerCase()];
+    if (water == null) return null;
+    return [
+      for (final v in values.take(4)) v! / 10,
+      (values[4]! / 12).clamp(0.0, 1.0),
+      water
+    ];
+  }
+
+  static String syntheticLabel(List<double> x) {
+    final needs = <String, double>{
+      'company': 1 - x[0],
+      'simplify': x[2],
+      'rest': ((1 - x[1]) + (1 - x[3]) + (1 - x[4])) / 3,
+      'drink': 1 - x[5],
+    }.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    if (needs.first.value >= 0.6) return needs.first.key;
+    return x[0] >= 0.7 && x[1] >= 0.7 && x[2] <= 0.3 ? 'enjoy' : 'steady';
+  }
+
+  static List<({List<double> x, String label})> syntheticExamples(
+      {bool holdout = false}) {
+    final rows = <({List<double> x, String label})>[];
+    var index = 0;
+    for (final mood in [0.2, 0.5, 0.8]) {
+      for (final energy in [0.2, 0.5, 0.8]) {
+        for (final stress in [0.2, 0.5, 0.8]) {
+          for (final sleep in [0.2, 0.5, 0.8]) {
+            for (final hours in [4 / 12, 7 / 12, 9 / 12]) {
+              for (final hydration in [0.0, 0.5, 1.0]) {
+                final x = <double>[
+                  mood,
+                  energy,
+                  stress,
+                  sleep,
+                  hours,
+                  hydration
+                ];
+                if ((index++ % 5 == 0) == holdout)
+                  rows.add((x: x, label: syntheticLabel(x)));
+              }
+            }
+          }
+        }
+      }
+    }
+    return List.unmodifiable(rows);
+  }
+
+  static final _training = syntheticExamples();
+
+  static String predictVector(List<double> x, {int neighbors = 7}) {
+    final distances = _training.map((row) {
+      var distance = 0.0;
+      for (var i = 0; i < x.length; i++) {
+        distance += (x[i] - row.x[i]) * (x[i] - row.x[i]);
+      }
+      return (distance: distance, label: row.label);
+    }).toList()
+      ..sort((a, b) => a.distance.compareTo(b.distance));
+    final votes = <String, double>{};
+    for (final row in distances.take(neighbors)) {
+      votes[row.label] = (votes[row.label] ?? 0) + 1 / (0.05 + row.distance);
+    }
+    return (votes.entries.toList()..sort((a, b) => b.value.compareTo(a.value)))
+        .first
+        .key;
+  }
+
+  static String? predict(Map<String, dynamic> row) {
+    final x = features(row);
+    return x == null ? null : predictVector(x);
   }
 }
 
-class _GrowthBabyPainter extends CustomPainter {
-  const _GrowthBabyPainter();
+Map<String, dynamic> wellbeingReflection(
+  Map<String, dynamic>? checkIn, {
+  List<Map<String, dynamic>> recentCheckIns = const [],
+}) {
+  if (checkIn == null) {
+    return {
+      'summary':
+          'There’s no check-in to reflect on yet, and that’s okay. When you’re ready, we’ll shape today around what you tell us.',
+      'pattern': null,
+      'steps': <String>[
+        'Start with a quick check-in whenever it suits you; share only what you feel comfortable sharing.',
+        'Afterwards, come back here for a few gentle ideas based on your answers.',
+      ],
+    };
+  }
+
+  final energy = num.tryParse(checkIn['energy']?.toString() ?? '');
+  final stress = num.tryParse(checkIn['stress']?.toString() ?? '');
+  final mood = num.tryParse(checkIn['mood']?.toString() ?? '');
+  final sleepQuality = num.tryParse(checkIn['sleep_quality']?.toString() ?? '');
+  final sleepDuration =
+      num.tryParse(checkIn['sleep_duration_hours']?.toString() ?? '');
+  final hydration = checkIn['hydration_status']?.toString().toLowerCase();
+  final lowMood = mood != null && mood <= 3;
+  final highStress = stress != null && stress >= 7;
+  final lowEnergy = energy != null && energy <= 3;
+  final poorSleep = (sleepQuality != null && sleepQuality <= 3) ||
+      (sleepDuration != null && sleepDuration < 6);
+  final positiveDay =
+      ((mood != null && mood >= 7) || (energy != null && energy >= 7)) &&
+          (mood == null || mood >= 4) &&
+          (energy == null || energy >= 4) &&
+          (stress == null || stress <= 3);
+
+  final recent = recentCheckIns.take(6).toList();
+  String? pattern;
+  String? recurringSignal;
+  if (recent.length >= 3) {
+    final patterns = <MapEntry<String, int>>[
+      MapEntry(
+          'low mood',
+          recent.where((row) {
+            final value = num.tryParse(row['mood']?.toString() ?? '');
+            return value != null && value <= 3;
+          }).length),
+      MapEntry(
+          'low energy',
+          recent.where((row) {
+            final value = num.tryParse(row['energy']?.toString() ?? '');
+            return value != null && value <= 3;
+          }).length),
+      MapEntry(
+          'high stress',
+          recent.where((row) {
+            final value = num.tryParse(row['stress']?.toString() ?? '');
+            return value != null && value >= 7;
+          }).length),
+      MapEntry(
+          'poor sleep quality',
+          recent.where((row) {
+            final value = num.tryParse(row['sleep_quality']?.toString() ?? '');
+            return value != null && value <= 3;
+          }).length),
+      MapEntry(
+          'short sleep',
+          recent.where((row) {
+            final value =
+                num.tryParse(row['sleep_duration_hours']?.toString() ?? '');
+            return value != null && value < 6;
+          }).length),
+      MapEntry(
+          'low hydration',
+          recent.where((row) {
+            final value = row['hydration_status']?.toString().toLowerCase();
+            return value == 'poor' || value == 'fair';
+          }).length),
+    ];
+    patterns.sort((a, b) => b.value.compareTo(a.value));
+    final leading = patterns.first;
+    if (leading.value >= 2) {
+      recurringSignal = leading.key;
+      pattern =
+          'In your last ${recent.length} check-ins, you noted ${leading.key} ${leading.value} times. That’s a pattern in what you’ve logged—not a health judgment. If it keeps coming up, consider sharing it with someone you trust or your care team.';
+    }
+  }
+
+  final summary = lowMood
+      ? 'Thank you for being honest about your mood. This sounds like a day to make things a little less lonely and ask for the care you deserve.'
+      : highStress
+          ? 'You’ve shared that stress feels high today. Let’s make the next part of the day smaller and bring someone supportive alongside you.'
+          : (lowEnergy || poorSleep)
+              ? 'You’ve logged low energy or a difficult night. It’s okay to give yourself a softer pace and ask for a hand.'
+              : positiveDay
+                  ? 'There’s some steadiness in what you shared today. You deserve to enjoy the good moments without needing to fill every minute.'
+                  : 'Thank you for checking in. Let’s use what you shared to make the next part of today feel a little more supported.';
+
+  final steps = <String>[];
+  final partnerSteps = <String>[];
+  final focusSteps = <String, List<String>>{};
+  final focusPartnerSteps = <String, List<String>>{};
+  if (lowMood) {
+    partnerSteps.add(
+        'Ask whether she would like company, a listening ear, or some quiet time. Let her choose.');
+    steps.add(
+        'Send a simple message to someone you trust: “Today feels heavy. Could you check in with me or keep me company?”');
+    steps.add(
+        'Pick one small comfort for the next hour—something gentle that feels manageable to you.');
+    focusSteps['company'] = steps.sublist(steps.length - 2);
+    focusPartnerSteps['company'] = [partnerSteps.last];
+  }
+  if (highStress) {
+    partnerSteps.add(
+        'Offer to take one task off her list and decide together what can wait.');
+    steps.add(
+        'Pause and choose just one next task; let a non-urgent task wait if you can. Ask someone close to help with one thing.');
+    focusSteps['simplify'] = [steps.last];
+    focusPartnerSteps['simplify'] = [partnerSteps.last];
+  }
+  if (lowEnergy || poorSleep) {
+    partnerSteps.add(
+        'Help make room for a rest break by handling a chore or reducing interruptions.');
+    steps.add(
+        'Make space for a comfortable rest break and ask your support person to take one task off your hands.');
+    focusSteps['rest'] = [steps.last];
+    focusPartnerSteps['rest'] = [partnerSteps.last];
+  }
+  if (hydration == 'poor' || hydration == 'fair') {
+    partnerSteps.add(
+        'Offer to bring her a drink, following any fluid advice from her care team.');
+    steps.add(
+        'If it feels right for you and your care team has not advised otherwise, keep a drink nearby and sip when you can.');
+    focusSteps['drink'] = [steps.last];
+    focusPartnerSteps['drink'] = [partnerSteps.last];
+  }
+  if (positiveDay) {
+    partnerSteps.add(
+        'Share something she enjoys today and leave room for breaks. Ask what she feels up to.');
+    steps.add(
+        'Choose one thing you’d enjoy today and share that good moment with someone close; keep room for breaks, too.');
+    focusSteps['enjoy'] = [steps.last];
+    focusPartnerSteps['enjoy'] = [partnerSteps.last];
+  }
+  // Today's needs come first; use older entries as context after them.
+  if (recurringSignal == 'low mood' && !lowMood) {
+    steps.add(
+        'Low mood has appeared in several recent check-ins, though you marked it as okay today. If it returns or concerns you, consider asking someone you trust for support.');
+  } else if (recurringSignal == 'low energy' && !lowEnergy) {
+    steps.add(
+        'Low energy has come up in several recent check-ins. If it continues, consider mentioning it to your care team.');
+  } else if (recurringSignal == 'high stress' && !highStress) {
+    steps.add(
+        'Stress has felt high in several recent check-ins. If it continues, consider simplifying the day and letting your support person know.');
+  } else if ((recurringSignal == 'poor sleep quality' ||
+          recurringSignal == 'short sleep') &&
+      !poorSleep) {
+    steps.add(
+        'Difficult or short sleep has come up in several check-ins. If it continues or concerns you, consider mentioning it to your care team.');
+  } else if (recurringSignal == 'low hydration' &&
+      hydration != 'poor' &&
+      hydration != 'fair') {
+    steps.add(
+        'You’ve marked hydration as poor or fair in several check-ins. If appropriate for you, keep a drink within reach and follow your care team’s advice.');
+  }
+  if (steps.isEmpty) {
+    steps.add(
+        'Choose one small thing that would make the next hour feel easier or more enjoyable.');
+    steps.add(
+        'If you would like company or help, tell someone close what would be useful.');
+  }
+  steps.add(
+      'If how you feel worries you, continues, or gets worse, contact your care team for personal guidance.');
+
+  if (partnerSteps.isEmpty) {
+    partnerSteps.add(
+        'Ask what would make today easier and offer one specific way to help.');
+  }
+
+  final focus = WellbeingSupportModel.predict(checkIn);
+  final leadingSteps = focusSteps[focus] ?? <String>[];
+  final leadingPartnerSteps = focusPartnerSteps[focus] ?? <String>[];
+
+  return {
+    'summary': summary,
+    'pattern': pattern,
+    'steps': <String>[
+      ...leadingSteps,
+      ...steps.where((step) => !leadingSteps.contains(step))
+    ],
+    'partnerSteps': <String>[
+      ...leadingPartnerSteps,
+      ...partnerSteps.where((step) => !leadingPartnerSteps.contains(step))
+    ],
+    'modelNote': leadingSteps.isEmpty
+        ? 'General support based on the answers provided. No ML prioritization was applied.'
+        : 'Experimental ML prioritization trained on synthetic examples. It orders support ideas; it has not been clinically validated and does not assess health risks.',
+  };
+}
+
+String growthComparison(int week) {
+  if (week <= 5) return 'poppy seed';
+  if (week <= 7) return 'blueberry';
+  if (week <= 9) return 'raspberry';
+  if (week <= 11) return 'strawberry';
+  if (week <= 12) return 'plum';
+  if (week <= 13) return 'peach';
+  if (week <= 15) return 'lemon';
+  if (week <= 17) return 'avocado';
+  if (week <= 19) return 'bell pepper';
+  if (week <= 21) return 'banana';
+  if (week <= 23) return 'papaya';
+  if (week <= 25) return 'courgette';
+  if (week <= 26) return 'cucumber';
+  if (week <= 27) return 'zucchini';
+  if (week <= 28) return 'aubergine';
+  if (week <= 29) return 'butternut squash';
+  if (week <= 31) return 'cabbage';
+  if (week <= 33) return 'pineapple';
+  if (week <= 35) return 'cantaloupe';
+  if (week <= 37) return 'romaine lettuce';
+  if (week <= 39) return 'honeydew melon';
+  if (week <= 40) return 'watermelon';
+  return 'pumpkin';
+}
+
+class GrowthBabyPainter extends CustomPainter {
+  const GrowthBabyPainter();
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1580,5 +1853,533 @@ class _GrowthBabyPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _GrowthBabyPainter oldDelegate) => false;
+  bool shouldRepaint(covariant GrowthBabyPainter oldDelegate) => false;
+}
+
+String partnerConnectionError(Object error) {
+  if (error is PostgrestException) {
+    switch (error.code) {
+      case 'PGRST202':
+      case 'PGRST205':
+      case '404':
+      case '42P01':
+      case '42883':
+        return 'Partner sharing is not set up in the database yet. The connection setup must be applied before accounts can connect.';
+      case '42501':
+        return 'Your account does not have permission for this connection. Please sign in with the correct Mother or Partner account.';
+      case '23505':
+        return 'A connection already exists. Refresh to see it before trying again.';
+      case 'P0001':
+        return error.message;
+    }
+  }
+  if (error is TimeoutException) {
+    return 'The connection request timed out. Refresh to check whether it was saved before trying again.';
+  }
+  if (error is StateError) return error.message.toString();
+  return 'Could not reach partner sharing. Check your connection and try again.';
+}
+
+class PartnerSharingScreen extends StatefulWidget {
+  const PartnerSharingScreen({super.key});
+
+  @override
+  State<PartnerSharingScreen> createState() => _PartnerSharingScreenState();
+}
+
+class _PartnerSharingScreenState extends State<PartnerSharingScreen> {
+  final SupabaseClient _supabase = Supabase.instance.client;
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _messageController = TextEditingController();
+  static const _shareOptions = <String, String>{
+    'pregnancy_progress': 'Baby growth, pregnancy week and due date',
+    'daily_wellbeing': 'Daily check-ins and the care plan based on them',
+    'symptoms': 'Logged symptoms',
+    'measurements': 'Manually entered measurements',
+  };
+
+  bool _loading = true;
+  bool _working = false;
+  String? _connectionId;
+  String? _partnerEmail;
+  String? _loadError;
+  String? _messageError;
+  Map<String, dynamic> _sharePreferences = {};
+  List<Map<String, dynamic>> _messages = [];
+  Timer? _refreshTimer;
+  bool _refreshing = false;
+  int _connectionLoadGeneration = 0;
+  int _messageLoadGeneration = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadConnection();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (!_working && !_loading) _loadConnection(silent: true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    _emailController.dispose();
+    _messageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadConnection({bool silent = false}) async {
+    if (!mounted || (silent && _refreshing)) return;
+    final generation = ++_connectionLoadGeneration;
+    _refreshing = true;
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _loadError = null;
+      });
+    }
+    try {
+      final user = _supabase.auth.currentUser;
+      if (user == null) throw StateError('Please sign in to continue.');
+      final connection = await _supabase
+          .from('caregiver_connections')
+          .select('id,partner_email,share_preferences')
+          .eq('mother_user_id', user.id)
+          .maybeSingle()
+          .timeout(const Duration(seconds: 20));
+      if (!mounted || generation != _connectionLoadGeneration) return;
+      if (connection == null) {
+        setState(() {
+          _connectionId = null;
+          _partnerEmail = null;
+          _sharePreferences = {};
+          _messages = [];
+          _messageError = null;
+          _loading = false;
+          _loadError = null;
+        });
+        return;
+      }
+      setState(() {
+        _connectionId = connection['id'] as String;
+        _partnerEmail = connection['partner_email'] as String?;
+        _sharePreferences = Map<String, dynamic>.from(
+            connection['share_preferences'] as Map? ?? {});
+        _loading = false;
+        _loadError = null;
+      });
+      await _loadMessages();
+    } catch (error) {
+      if (!mounted || generation != _connectionLoadGeneration) return;
+      setState(() {
+        _loading = false;
+        _loadError = partnerConnectionError(error);
+      });
+    } finally {
+      if (generation == _connectionLoadGeneration) _refreshing = false;
+    }
+  }
+
+  Future<void> _loadMessages() async {
+    final connectionId = _connectionId;
+    if (connectionId == null) return;
+    final generation = ++_messageLoadGeneration;
+    try {
+      final result = await _supabase
+          .from('care_messages')
+          .select('id,sender_user_id,body,sent_at')
+          .eq('connection_id', connectionId)
+          .order('sent_at', ascending: false)
+          .limit(40)
+          .timeout(const Duration(seconds: 20));
+      if (!mounted ||
+          _connectionId != connectionId ||
+          generation != _messageLoadGeneration) return;
+      setState(() {
+        _messages = List<Map<String, dynamic>>.from(result).reversed.toList();
+        _messageError = null;
+      });
+    } catch (error) {
+      if (mounted &&
+          _connectionId == connectionId &&
+          generation == _messageLoadGeneration) {
+        setState(() => _messageError =
+            'Messages could not refresh. Your saved conversation may be out of date.');
+      }
+    }
+  }
+
+  Future<void> _connectPartner() async {
+    if (_working) return;
+    final email = _emailController.text.trim().toLowerCase();
+    if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Enter a valid email address.')));
+      return;
+    }
+    final user = _supabase.auth.currentUser;
+    if (user == null || email == user.email?.trim().toLowerCase()) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(user == null
+              ? 'Please sign in before connecting a Partner.'
+              : 'Enter your Partner’s account email, rather than your own.')));
+      return;
+    }
+    setState(() => _working = true);
+    String? savedConnectionId;
+    try {
+      final result = await _supabase.rpc('connect_partner_by_email', params: {
+        'p_partner_email': email
+      }).timeout(const Duration(seconds: 20));
+      if (result is! String || result.isEmpty) {
+        throw StateError(
+            'The database did not confirm the connection. Refresh before trying again.');
+      }
+      savedConnectionId = result;
+      await _loadConnection();
+      if (!mounted) return;
+      if (_connectionId != savedConnectionId || _loadError != null) {
+        throw StateError(_loadError ??
+            'The connection could not be confirmed. Please refresh and try again.');
+      }
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+              'Your Partner account is connected. Choose what to share.')));
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(savedConnectionId == null
+                ? partnerConnectionError(error)
+                : 'The connection was saved, but could not be refreshed. Tap Try again to load it.')));
+      }
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
+  Future<void> _setShared(String key, bool? enabled) async {
+    final connectionId = _connectionId;
+    final user = _supabase.auth.currentUser;
+    if (connectionId == null || user == null || enabled == null || _working) {
+      return;
+    }
+    // Discard a background read that began before this new consent choice.
+    ++_connectionLoadGeneration;
+    _refreshing = false;
+    final previous = Map<String, dynamic>.from(_sharePreferences);
+    final updated = Map<String, dynamic>.from(previous)..[key] = enabled;
+    setState(() {
+      _working = true;
+      _sharePreferences = updated;
+    });
+    try {
+      await _supabase
+          .from('caregiver_connections')
+          .update({'share_preferences': updated})
+          .eq('id', connectionId)
+          .eq('mother_user_id', user.id)
+          .select('id')
+          .single();
+    } catch (error) {
+      if (mounted) {
+        setState(() => _sharePreferences = previous);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Could not update sharing choices: $error')));
+      }
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
+  Future<void> _sendMessage() async {
+    final text = _messageController.text.trim();
+    final connectionId = _connectionId;
+    final user = _supabase.auth.currentUser;
+    if (text.isEmpty || connectionId == null || user == null || _working) {
+      return;
+    }
+    setState(() => _working = true);
+    try {
+      await _supabase
+          .from('care_messages')
+          .insert({
+            'connection_id': connectionId,
+            'sender_user_id': user.id,
+            'body': text,
+          })
+          .select('id')
+          .single();
+      if (!mounted) return;
+      _messageController.clear();
+      await _loadMessages();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not send message: $error')));
+      }
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
+  Future<void> _disconnectPartner() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Disconnect Partner?'),
+        content: const Text(
+            'They will lose access to shared information and this conversation.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Keep connected')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Disconnect')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    setState(() => _working = true);
+    try {
+      await _supabase.rpc('disconnect_partner');
+      await _loadConnection();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not disconnect Partner: $error')));
+      }
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final userId = _supabase.auth.currentUser?.id;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Partner & sharing')),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 680),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('A little more support, on your terms',
+                          style: Theme.of(context).textTheme.headlineSmall),
+                      const SizedBox(height: 6),
+                      Text(
+                          'Connect your Partner and choose exactly which parts of your care journey they can see.',
+                          style: Theme.of(context).textTheme.bodyMedium),
+                      if (_loadError != null) ...[
+                        const SizedBox(height: 12),
+                        Text('Could not load sharing details: $_loadError'),
+                        TextButton(
+                            onPressed: _loadConnection,
+                            child: const Text('Try again')),
+                      ] else if (_connectionId == null)
+                        _buildConnectCard(context)
+                      else ...[
+                        const SizedBox(height: 16),
+                        _buildSharingCard(context),
+                        const SizedBox(height: 16),
+                        _buildConversationCard(context, userId),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+    );
+  }
+
+  Widget _buildConnectCard(BuildContext context) => Card(
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Connect your Partner',
+                  style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 6),
+              Text(
+                  'Enter the email on their existing MatruCare account. They need to select the Partner role first. This connects the account; it does not send an email invitation.',
+                  style: Theme.of(context).textTheme.bodyMedium),
+              const SizedBox(height: 14),
+              TextField(
+                controller: _emailController,
+                enabled: !_working,
+                keyboardType: TextInputType.emailAddress,
+                autofillHints: const [AutofillHints.email],
+                decoration: const InputDecoration(
+                  labelText: 'Partner’s account email',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: _working ? null : _connectPartner,
+                icon: const Icon(Icons.link),
+                label: Text(_working ? 'Connecting…' : 'Connect account'),
+              ),
+            ],
+          ),
+        ),
+      );
+
+  Widget _buildSharingCard(BuildContext context) => Card(
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Expanded(
+                  child: Text('What you choose to share',
+                      style: Theme.of(context).textTheme.titleLarge),
+                ),
+                IconButton(
+                  tooltip: 'Disconnect Partner',
+                  onPressed: _working ? null : _disconnectPartner,
+                  icon: const Icon(Icons.link_off),
+                ),
+              ]),
+              Text('Connected with ${_partnerEmail ?? 'your Partner'}',
+                  style: Theme.of(context).textTheme.bodyMedium),
+              const SizedBox(height: 8),
+              Text(
+                  'Sharing starts off. You can change these choices at any time. Wellbeing sharing includes a care plan based on your answers. Personal notes are never included. Your conversation is visible to both of you.',
+                  style: Theme.of(context).textTheme.bodySmall),
+              const SizedBox(height: 8),
+              ..._shareOptions.entries.map((entry) => CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(entry.value),
+                    value: _sharePreferences[entry.key] == true,
+                    onChanged: _working
+                        ? null
+                        : (value) => _setShared(entry.key, value),
+                    controlAffinity: ListTileControlAffinity.leading,
+                  )),
+            ],
+          ),
+        ),
+      );
+
+  Widget _buildConversationCard(BuildContext context, String? userId) => Card(
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Expanded(
+                    child: Text('A note for each other',
+                        style: Theme.of(context).textTheme.titleLarge)),
+                IconButton(
+                  tooltip: 'Refresh conversation',
+                  onPressed: _loadMessages,
+                  icon: const Icon(Icons.refresh),
+                ),
+              ]),
+              const SizedBox(height: 8),
+              Text('Messages refresh every 15 seconds while this page is open.',
+                  style: Theme.of(context).textTheme.bodySmall),
+              if (_messageError != null)
+                Text(_messageError!,
+                    style: Theme.of(context).textTheme.bodySmall),
+              const SizedBox(height: 8),
+              Container(
+                height: 220,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF8FA),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFEFE3E8)),
+                ),
+                child: _messages.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(18),
+                          child: Text(
+                              'Your conversation starts here. Send a kind note or let them know what support would help today.',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.bodyMedium),
+                        ),
+                      )
+                    : ListView.builder(
+                        reverse: true,
+                        padding: const EdgeInsets.all(10),
+                        itemCount: _messages.length,
+                        itemBuilder: (context, index) {
+                          final message =
+                              _messages[_messages.length - 1 - index];
+                          final isMine = message['sender_user_id'] == userId;
+                          final sentAt = DateTime.tryParse(
+                                  message['sent_at']?.toString() ?? '')
+                              ?.toLocal();
+                          return Align(
+                            alignment: isMine
+                                ? Alignment.centerRight
+                                : Alignment.centerLeft,
+                            child: Container(
+                              constraints: const BoxConstraints(maxWidth: 300),
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: isMine
+                                    ? const Color(0xFFF1E8ED)
+                                    : Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(message['body']?.toString() ?? ''),
+                                  if (sentAt != null)
+                                    Text(
+                                        DateFormat('d MMM · h:mm a')
+                                            .format(sentAt),
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+              const SizedBox(height: 10),
+              Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                Expanded(
+                  child: TextField(
+                    controller: _messageController,
+                    enabled: !_working,
+                    minLines: 1,
+                    maxLines: 3,
+                    maxLength: 2000,
+                    decoration: const InputDecoration(
+                      hintText: 'Write a message…',
+                      border: OutlineInputBorder(),
+                      counterText: '',
+                    ),
+                    onSubmitted: (_) => _sendMessage(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton.filled(
+                  tooltip: 'Send message',
+                  onPressed: _working ? null : _sendMessage,
+                  icon: const Icon(Icons.send),
+                ),
+              ]),
+            ],
+          ),
+        ),
+      );
 }

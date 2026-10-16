@@ -25,6 +25,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _signIn() async {
+    if (_isLoggingIn || _isSigningUp) return;
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoggingIn = true);
@@ -38,7 +39,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       Navigator.pushNamedAndRemoveUntil(
         context,
-        '/role-selection',
+        '/',
         (_) => false,
       );
     } on AuthException catch (e) {
@@ -84,9 +85,8 @@ class _LoginScreenState extends State<LoginScreen> {
         OAuthProvider.google,
         // Browser OAuth must return to the current web origin. The app URI
         // scheme is reserved for native deep-link callbacks.
-        redirectTo: kIsWeb
-            ? Uri.base.origin
-            : 'com.matrucare.app://login-callback',
+        redirectTo:
+            kIsWeb ? Uri.base.origin : 'com.matrucare.app://login-callback',
       );
     } on AuthException catch (e) {
       if (!mounted) return;

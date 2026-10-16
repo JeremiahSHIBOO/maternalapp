@@ -22,7 +22,10 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
     try {
       await Supabase.instance.client
           .from('profiles')
-          .update({'role': role}).eq('id', user.id);
+          .update({'role': role})
+          .eq('id', user.id)
+          .select('id,role')
+          .single();
       if (role == 'mother') {
         await Supabase.instance.client.from('pregnancy_profiles').upsert(
           {'user_id': user.id},

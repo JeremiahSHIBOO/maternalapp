@@ -18,6 +18,7 @@ class AppRoutes {
   static const String patientDetails = '/patient-details';
   static const String dailyCheckIn = '/check-in';
   static const String symptomTracker = '/symptoms';
+  static const String partnerSharing = '/partner-sharing';
 
   static Route<dynamic>? onGenerate(RouteSettings settings) {
     switch (settings.name) {
@@ -37,6 +38,8 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => const DailyCheckInScreen());
       case symptomTracker:
         return MaterialPageRoute(builder: (_) => const SymptomTrackerScreen());
+      case partnerSharing:
+        return MaterialPageRoute(builder: (_) => const PartnerSharingScreen());
       case patientDetails:
         final args = settings.arguments as Map<String, dynamic>?;
         return MaterialPageRoute(
