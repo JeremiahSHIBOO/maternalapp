@@ -5,9 +5,9 @@ from typing import List
 
 BASE_DIR = Path(__file__).parent.parent.parent.parent
 BASE_URL = os.getenv("BASE_URL", "http://127.0.0.1:8000")
-DATABASE_URL = os.getenv(
-    "DATABASE_URL", "sqlite:///./test.db"
-)
+# Supabase PostgreSQL connection string (required — no SQLite fallback).
+# Format: postgresql://postgres:<password>@db.<project-ref>.supabase.co:5432/postgres
+DATABASE_URL = os.getenv("DATABASE_URL", "")
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
@@ -23,6 +23,15 @@ ENABLE_PARTNER_SHARING = os.getenv("ENABLE_PARTNER_SHARING", "true").lower() == 
 ENABLE_DOCTOR_PORTAL = os.getenv("ENABLE_DOCTOR_PORTAL", "true").lower() == "true"
 
 ADMIN_USERS = os.getenv("ADMIN_USERS", "").split(",") if os.getenv("ADMIN_USERS") else []
+
+ALLOWED_ORIGINS = [
+    o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()
+]
+
+# Supabase Auth configuration (Flutter authenticates with Supabase; the
+# Python API verifies Supabase access tokens via the project JWKS endpoint).
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", "")
 
 
 def is_production() -> bool:

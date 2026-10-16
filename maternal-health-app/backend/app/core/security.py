@@ -11,7 +11,7 @@ from passlib.context import CryptContext
 from .config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 
 # Password hashing
-pwd_context = CryptContext(schemes=["auto"], deprecated="auto")
+pwd_context = CryptContext(schemes=["bcrypt"])
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

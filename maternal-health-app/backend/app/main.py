@@ -5,11 +5,22 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+# Load .env automatically when run directly (for one-command startup)
+try:
+    from dotenv import load_dotenv
+    from pathlib import Path
+    _env_path = Path(__file__).resolve().parent.parent / ".env"
+    if _env_path.exists():
+        load_dotenv(_env_path)
+except Exception:
+    pass
+
 from .core.config import (
     BASE_URL,
     ENVIRONMENT,
     is_development,
     is_production,
+    ALLOWED_ORIGINS,
 )
 from .core.database import get_db
 from .api.router import api_router
@@ -22,22 +33,27 @@ app = FastAPI(
     redoc_url="/redoc" if is_development() else None,
 )
 
-# CORS configuration for local development
-if is_development():
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[
-            "http://127.0.0.1:8000",
-            "http://localhost:8000",
-            "http://127.0.0.1:3000",
-            "http://localhost:3000",
-            "http://127.0.0.1:8501",
-            "http://localhost:8501",
-        ],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+# CORS configuration. In production, only explicitly allowed origins are
+# accepted; never "*". In development, allow common local origins.
+_cors_origins = ALLOWED_ORIGINS or (
+    [
+        "http://127.0.0.1:8000",
+        "http://localhost:8000",
+        "http://127.0.0.1:3000",
+        "http://localhost:3000",
+        "http://127.0.0.1:8501",
+        "http://localhost:8501",
+    ]
+    if is_development()
+    else []
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Include API router
 app.include_router(api_router, prefix="/api")
@@ -80,4 +96,3 @@ if __name__ == "__main__":
         port=8000,
         reload=is_development(),
     )
-# TODO: init_db() - enable when PostgreSQL is available

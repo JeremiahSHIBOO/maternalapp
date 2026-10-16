@@ -40,13 +40,20 @@ class User(Base):
     # Shared with partner
     shared_entries = relationship("SharedEntry", back_populates="shared_with_user", foreign_keys="SharedEntry.shared_with_user_id")
     # Partner invited by
-    invited_by = relationship("FamilyInvitation", back_populates="invited_by_user")
+    invited_by = relationship("FamilyInvitation", back_populates="invitee")
     # Invitations sent
-    invitations_sent = relationship("FamilyInvitation", back_populates="invited_to_user")
-    # Doctor assignments
-    assigned_doctor = relationship("DoctorAssignment", back_populates="mother_user")
-    # Audit events
-    audit_events = relationship("AuditEvent", back_populates="target_user")
+    invitations_sent = relationship("FamilyInvitation", back_populates="inviter")
+    # Doctor assignments (a doctor user's assigned patients)
+    assigned_patients = relationship("DoctorAssignment", back_populates="doctor")
+    # Audit events (AuditEvent.target_user_id points to this user)
+    audit_events = relationship(
+        "AuditEvent", back_populates="target_user",
+        foreign_keys="[AuditEvent.target_user_id]",
+    )
+    # Clinician notes written by this user (doctor)
+    clinician_notes_written = relationship("ClinicianNote", back_populates="doctor")
+    # Notifications for this user
+    notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
 
 
 class MotherPregnancyProfile(Base):
@@ -78,6 +85,12 @@ class MotherPregnancyProfile(Base):
     tasks = relationship("Task", back_populates="mother_profile", cascade="all, delete-orphan")
     expenses = relationship("Expense", back_populates="mother_profile", cascade="all, delete-orphan")
     baby_care_events = relationship("BabyCareEvent", back_populates="mother_profile", cascade="all, delete-orphan")
+    consent_grants = relationship("ConsentGrant", back_populates="mother_profile", cascade="all, delete-orphan")
+    insight_summaries = relationship("InsightSummary", back_populates="mother_profile", cascade="all, delete-orphan")
+    baby_profile = relationship("BabyProfile", back_populates="mother_profile", uselist=False)
+    assigned_doctor = relationship("DoctorAssignment", back_populates="mother")
+    medical_documents = relationship("MedicalDocument", back_populates="mother_profile", cascade="all, delete-orphan")
+    clinician_notes = relationship("ClinicianNote", back_populates="mother_profile", cascade="all, delete-orphan")
 
 
 class BabyGrowthWeek(Base):
@@ -122,10 +135,38 @@ class DailyCheckIn(Base):
     hydration_status = Column(String(50), nullable=True, comment='e.g., good, fair, poor')
     activity_minutes = Column(Integer, nullable=True)
     notes = Column(Text, nullable=True)
+
+    # Optional health readings (mirrors the Flutter check-in form and Supabase schema)
+    bp_systolic_mmhg = Column(Integer, nullable=True)
+    bp_diastolic_mmhg = Column(Integer, nullable=True)
+    heart_rate_bpm = Column(Integer, nullable=True)
+    hrv_ms = Column(Float, nullable=True)
+    spo2_percent = Column(Float, nullable=True)
+    respiratory_rate_per_min = Column(Integer, nullable=True)
+    skin_temperature_c = Column(Float, nullable=True)
+    weight_kg = Column(Float, nullable=True)
+    steps_count = Column(Integer, nullable=True)
+    measurement_source = Column(String(50), nullable=True, default="manual")
+
     is_demo = Column(Boolean, default=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     mother_profile = relationship("MotherPregnancyProfile", back_populates="check_ins")
+
+
+class SharedEntry(Base):
+    """Shared care entry between users (supports User.shared_entries)."""
+    __tablename__ = "shared_entries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    shared_with_user_id = Column(
+        Integer, ForeignKey("users.id"), nullable=False
+    )
+    entry_type = Column(String(50), nullable=True)
+    entry_id = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    shared_with_user = relationship("User", back_populates="shared_entries")
 
 
 class SymptomLog(Base):

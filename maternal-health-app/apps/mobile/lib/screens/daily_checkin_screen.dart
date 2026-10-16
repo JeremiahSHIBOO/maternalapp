@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/profile_service.dart';
+import '../services/wellness_service.dart';
 
 class DailyCheckInScreen extends StatefulWidget {
   const DailyCheckInScreen({super.key, this.initialCheckIn});
@@ -34,6 +35,12 @@ class _DailyCheckInScreenState extends State<DailyCheckInScreen> {
   Map<String, dynamic>? _existingCheckIn;
   String _measurementSource = 'manual';
 
+  // Insights from the Python wellness API
+  List<Map<String, dynamic>> _insights = [];
+  List<String> _suggestions = [];
+  String? _apiError;
+  bool _apiLoading = false;
+
   final List<String> _hydrationOptions = ['poor', 'fair', 'good', 'excellent'];
   String? _selectedHydration;
 
@@ -41,6 +48,7 @@ class _DailyCheckInScreenState extends State<DailyCheckInScreen> {
   void initState() {
     super.initState();
     _loadTodayCheckIn();
+    _fetchTodayInsights();
   }
 
   Future<void> _loadTodayCheckIn() async {
@@ -73,6 +81,73 @@ class _DailyCheckInScreenState extends State<DailyCheckInScreen> {
           _loadError =
               'We couldn’t load today’s saved check-in. Please retry before editing.';
         });
+    }
+  }
+
+  /// Fetch today's insights from the Python wellness API (non-blocking).
+  Future<void> _fetchTodayInsights() async {
+    final session = _supabase.auth.currentSession;
+    if (session == null) return;
+    setState(() {
+      _apiLoading = true;
+      _apiError = null;
+    });
+    try {
+      final data = await WellnessService.fetchTodayInsights(
+        accessToken: session.accessToken,
+      );
+      if (!mounted) return;
+      setState(() {
+        _insights = List<Map<String, dynamic>>.from(
+          (data['insights'] as List?) ?? [],
+        );
+        _suggestions = List<String>.from(
+          (data['suggestions'] as List?) ?? [],
+        );
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _apiError = 'Couldn’t load wellness insights: $e';
+      });
+    } finally {
+      if (mounted) setState(() => _apiLoading = false);
+    }
+  }
+
+  /// Map the numeric score stored in a controller back to its categorical
+  /// label, matching the values the Python backend accepts.
+  String _scoreLabel(String field, String controllerText) {
+    final val = int.tryParse(controllerText.trim());
+    if (val == null) return '';
+    if (field == 'stress') {
+      return val <= 3 ? 'Low' : val <= 7 ? 'Some' : 'High';
+    }
+    if (field == 'sleep quality') {
+      return val <= 3 ? 'Poor' : val <= 7 ? 'Okay' : 'Good';
+    }
+    if (field == 'energy') {
+      return val <= 3 ? 'Low' : val <= 7 ? 'Some' : 'Plenty';
+    }
+    // mood
+    return val <= 3 ? 'Low' : val <= 7 ? 'Okay' : 'Good';
+  }
+
+  Color _insightColor(String type) {
+    switch (type) {
+      case 'short_sleep_poor_quality':
+      case 'high_stress_low_energy':
+      case 'energy_below_baseline':
+      case 'stress_above_baseline':
+        return const Color(0xFF880E4F);
+      case 'low_mood':
+      case 'poor_hydration':
+      case 'sleep_change_vs_baseline':
+        return Colors.amber.shade700;
+      case 'restful_sleep':
+        return Colors.green.shade700;
+      default:
+        return Colors.blue.shade700;
     }
   }
 
@@ -268,6 +343,101 @@ class _DailyCheckInScreenState extends State<DailyCheckInScreen> {
               .eq('mother_profile_id', profileId)
               .select()
               .single();
+
+      // Also submit to the Python wellness API for personalized insights.
+      // This is non-critical: if the API is unavailable, the check-in is still
+      // saved to Supabase and the user sees an error note instead of a crash.
+      try {
+        final session = _supabase.auth.currentSession;
+        if (session != null) {
+          final apiValues = <String, dynamic>{
+            'sleep_duration_hours': sleep,
+            'sleep_quality': _scoreLabel(
+                'sleep quality', _sleepQualityController.text),
+            'mood': _scoreLabel('mood', _moodController.text),
+            'energy': _scoreLabel('energy', _energyController.text),
+            'stress': _scoreLabel('stress', _stressController.text),
+            'hydration': _selectedHydration,
+            'notes': _notesController.text.isNotEmpty
+                ? _notesController.text
+                : null,
+            'health_readings': <Map<String, dynamic>>[
+              if (systolic != null)
+                {
+                  'measurement_type': 'blood_pressure_systolic',
+                  'value': systolic,
+                  'unit': 'mmHg',
+                },
+              if (diastolic != null)
+                {
+                  'measurement_type': 'blood_pressure_diastolic',
+                  'value': diastolic,
+                  'unit': 'mmHg',
+                },
+              if (heartRate != null)
+                {
+                  'measurement_type': 'heart_rate',
+                  'value': heartRate,
+                  'unit': 'bpm',
+                },
+              if (hrv != null)
+                {
+                  'measurement_type': 'heart_rate_variability',
+                  'value': hrv,
+                  'unit': 'ms',
+                },
+              if (oxygen != null)
+                {
+                  'measurement_type': 'blood_oxygen',
+                  'value': oxygen,
+                  'unit': '%',
+                },
+              if (respiratoryRate != null)
+                {
+                  'measurement_type': 'respiratory_rate',
+                  'value': respiratoryRate,
+                  'unit': 'breaths/min',
+                },
+              if (skinTemperature != null)
+                {
+                  'measurement_type': 'skin_temperature',
+                  'value': skinTemperature,
+                  'unit': 'celsius',
+                },
+              if (weight != null)
+                {
+                  'measurement_type': 'weight',
+                  'value': weight,
+                  'unit': 'kg',
+                },
+              if (steps != null)
+                {
+                  'measurement_type': 'steps',
+                  'value': steps,
+                  'unit': 'count',
+                },
+            ],
+          };
+          final apiData = await WellnessService.submitCheckIn(
+            accessToken: session.accessToken,
+            values: apiValues,
+          );
+          if (!mounted) return;
+          setState(() {
+            _insights = List<Map<String, dynamic>>.from(
+              (apiData['insights'] as List?) ?? [],
+            );
+            _suggestions = List<String>.from(
+              (apiData['suggestions'] as List?) ?? [],
+            );
+          });
+        }
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _apiError = 'Check-in saved, but insights could not be loaded: $e';
+        });
+      }
 
       if (!mounted) return;
       Navigator.of(context).pop(Map<String, dynamic>.from(savedCheckIn));
@@ -615,6 +785,183 @@ class _DailyCheckInScreenState extends State<DailyCheckInScreen> {
                                     maxLines: 2,
                                   ),
                                   const SizedBox(height: 24),
+
+                                  // Wellness insights from the Python API
+                                  if (_apiLoading)
+                                    const Center(
+                                      child: Padding(
+                                        padding: EdgeInsets.only(bottom: 16),
+                                        child: CircularProgressIndicator(),
+                                      ),
+                                    )
+                                  else ...[
+                                    if (_apiError != null)
+                                      Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: Colors.amber.shade50,
+                                          border: Border.all(
+                                              color: Colors.amber.shade200),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          _apiError!,
+                                          style: TextStyle(
+                                              color: Colors.amber.shade900,
+                                              fontSize: 13),
+                                        ),
+                                      ),
+                                    if (_insights.isNotEmpty) ...[
+                                      const Text(
+                                        'Wellness Insights',
+                                        style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      ..._insights.map((insight) {
+                                        final observations =
+                                            insight['supporting_observations']
+                                                as List?;
+                                        final obsText = observations != null
+                                            ? observations
+                                                .map((o) =>
+                                                    '${o['field']}: ${o['value'] ?? o['label'] ?? ''}')
+                                                .join('; ')
+                                            : '';
+                                        return Container(
+                                          margin: const EdgeInsets.only(
+                                              bottom: 8),
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey.shade50,
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Container(
+                                                    padding: const EdgeInsets
+                                                        .symmetric(
+                                                        horizontal: 6,
+                                                        vertical: 2),
+                                                    decoration: BoxDecoration(
+                                                      color:
+                                                          _insightColor(
+                                                          insight['type'] ?? ''
+                                                      ),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                      4),
+                                                    ),
+                                                    child: Text(
+                                                      (insight['type'] ??
+                                                              '')
+                                                          .replaceAll(
+                                                      '_', ' '
+                                                      )
+                                                          .toUpperCase(),
+                                                      style: TextStyle(
+                                                        fontSize: 10,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: _insightColor(
+                                                            insight['type'] ??
+                                                                ''),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 6),
+                                              Text(
+                                                insight['message'] ?? '',
+                                                style: const TextStyle(
+                                                    fontSize: 14,
+                                                    height: 1.4),
+                                              ),
+                                              if (obsText.isNotEmpty)
+                                                Padding(
+                                                  padding: const EdgeInsets
+                                                      .only(top: 4),
+                                                  child: Text(
+                                                    'Based on: $obsText',
+                                                    style: TextStyle(
+                                                        fontSize: 11,
+                                                        color:
+                                                            Colors.grey[600],
+                                                        fontStyle:
+                                                            FontStyle.italic),
+                                                  ),
+                                                ),
+                                              if (insight['suggested_action'] !=
+                                                  null)
+                                                Padding(
+                                                  padding: const EdgeInsets
+                                                      .only(top: 4),
+                                                  child: Text(
+                                                    '→ ${insight['suggested_action']}',
+                                                    style: const TextStyle(
+                                                        fontSize: 12,
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                        color: Color(
+                                                            0xFF880E4F)),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        );
+                                      }).toList(),
+                                    ],
+                                    if (_suggestions.isNotEmpty) ...[
+                                      const SizedBox(height: 8),
+                                      const Text(
+                                        'Suggestions',
+                                        style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      ..._suggestions.map((s) => Padding(
+                                            padding: const EdgeInsets.only(
+                                                bottom: 4),
+                                            child: Row(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                const Text('•  ',
+                                                    style: TextStyle(
+                                                        fontSize: 14,
+                                                        color: Color(
+                                                            0xFF880E4F))),
+                                                Expanded(
+                                                  child: Text(
+                                                    s,
+                                                    style: const TextStyle(
+                                                        fontSize: 14),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          )),
+                                    ],
+                                    if (_insights.isEmpty &&
+                                        _suggestions.isEmpty &&
+                                        _apiError == null &&
+                                        !_apiLoading)
+                                      const Text(
+                                        'No insights yet. Save a check-in to see personalized wellness insights.',
+                                        style: TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.grey),
+                                      ),
+                                  ],
 
                                   // Submit button
                                   SizedBox(

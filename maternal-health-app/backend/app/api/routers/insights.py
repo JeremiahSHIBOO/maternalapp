@@ -1,7 +1,8 @@
 """Insights router - AI-generated summaries."""
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing: List
+from typing import List
 
 from ...core.database import get_db
 from ...models.models import InsightSummary
